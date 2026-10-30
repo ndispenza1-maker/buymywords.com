@@ -24,7 +24,65 @@ function timeAgo(date: string) {
   return `${Math.floor(s / 86400)}d`;
 }
 
-function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }) {
+/* ── Auth gate modal ── */
+function AuthGate({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{ background: "rgba(45,36,36,0.6)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-sm w-full text-center"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
+          Join The Mall
+        </h2>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+          Create a profile to like, comment, post, and connect with people.
+        </p>
+        <div className="space-y-3">
+          <a
+            href="/signup"
+            className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
+            style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+          >
+            Create Profile
+          </a>
+          <a
+            href="/login"
+            className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
+            style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+          >
+            Already have one? Log in
+          </a>
+        </div>
+        <button
+          onClick={onClose}
+          className="mt-4 text-xs bg-transparent border-none cursor-pointer"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Just browsing
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Post card ── */
+function PostCard({
+  post,
+  onLike,
+  onGate,
+  isGuest,
+}: {
+  post: Post;
+  onLike: (id: string) => void;
+  onGate: () => void;
+  isGuest: boolean;
+}) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<
     { id: string; content: string; display_name: string; avatar_url: string | null; created_at: string }[]
@@ -40,6 +98,7 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
   };
 
   const submitComment = async () => {
+    if (isGuest) { onGate(); return; }
     if (!newComment.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
       method: "POST",
@@ -100,7 +159,7 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
       {/* Actions */}
       <div className="flex items-center gap-6 text-xs" style={{ color: "var(--text-muted)" }}>
         <button
-          onClick={() => onLike(post.id)}
+          onClick={() => (isGuest ? onGate() : onLike(post.id))}
           className="flex items-center gap-1 hover:opacity-80 bg-transparent border-none cursor-pointer"
           style={{ color: post.liked ? "var(--sunset-warm)" : "var(--text-muted)" }}
         >
@@ -149,17 +208,20 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitComment()}
-              placeholder="Write a comment..."
+              placeholder={isGuest ? "Create a profile to comment..." : "Write a comment..."}
               className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
               style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+              onFocus={() => { if (isGuest) onGate(); }}
             />
-            <button
-              onClick={submitComment}
-              className="px-3 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer"
-              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-            >
-              Post
-            </button>
+            {!isGuest && (
+              <button
+                onClick={submitComment}
+                className="px-3 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer"
+                style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+              >
+                Post
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -167,10 +229,14 @@ function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }
   );
 }
 
-export default function FeedClient({ currentUserId }: { currentUserId: string }) {
+/* ── Feed ── */
+export default function FeedClient({ currentUserId }: { currentUserId: string | null }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
+  const [showGate, setShowGate] = useState(false);
+
+  const isGuest = !currentUserId;
 
   const loadPosts = useCallback(async () => {
     const res = await fetch("/api/posts");
@@ -185,6 +251,7 @@ export default function FeedClient({ currentUserId }: { currentUserId: string })
   }, [loadPosts]);
 
   const createPost = async () => {
+    if (isGuest) { setShowGate(true); return; }
     if (!newPost.trim() || posting) return;
     setPosting(true);
     const res = await fetch("/api/posts", {
@@ -216,6 +283,8 @@ export default function FeedClient({ currentUserId }: { currentUserId: string })
 
   return (
     <div>
+      {showGate && <AuthGate onClose={() => setShowGate(false)} />}
+
       {/* Composer */}
       <div
         className="rounded-xl p-4 mb-4"
@@ -224,7 +293,7 @@ export default function FeedClient({ currentUserId }: { currentUserId: string })
         <textarea
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}
-          placeholder="What's on your mind?"
+          placeholder={isGuest ? "Create a profile to post..." : "What's on your mind?"}
           rows={3}
           className="w-full resize-none text-sm outline-none p-2 rounded-lg"
           style={{
@@ -232,11 +301,12 @@ export default function FeedClient({ currentUserId }: { currentUserId: string })
             background: "var(--bg)",
             fontFamily: "inherit",
           }}
+          onFocus={() => { if (isGuest) setShowGate(true); }}
         />
         <div className="flex justify-end mt-2">
           <button
             onClick={createPost}
-            disabled={!newPost.trim() || posting}
+            disabled={!isGuest && (!newPost.trim() || posting)}
             className="px-6 py-2 rounded-full text-sm font-semibold border-none cursor-pointer disabled:opacity-40"
             style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
           >
@@ -249,11 +319,19 @@ export default function FeedClient({ currentUserId }: { currentUserId: string })
       {posts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Nothing here yet. Be the first to post.
+            Nothing here yet. {isGuest ? "Check back soon." : "Be the first to post."}
           </p>
         </div>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} onLike={toggleLike} />)
+        posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            onLike={toggleLike}
+            onGate={() => setShowGate(true)}
+            isGuest={isGuest}
+          />
+        ))
       )}
     </div>
   );

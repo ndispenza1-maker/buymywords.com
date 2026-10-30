@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 
+// GET — read comments (open to everyone)
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id: postId } = await params;
   const sql = getSQL();
 
@@ -23,6 +21,7 @@ export async function GET(
   return NextResponse.json({ comments });
 }
 
+// POST — write comment (auth required)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

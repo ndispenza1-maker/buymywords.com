@@ -31,10 +31,12 @@ function timeAgo(date: string) {
   return `${Math.floor(s / 86400)}d`;
 }
 
-export default function ProfileClient({ userId }: { userId: string }) {
+export default function ProfileClient({ userId, currentUserId }: { userId: string; currentUserId: string | null }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState("");
+  const [showGate, setShowGate] = useState(false);
+  const isGuest = !currentUserId;
 
   useEffect(() => {
     fetch(`/api/users/${userId}`)
@@ -51,6 +53,7 @@ export default function ProfileClient({ userId }: { userId: string }) {
 
   const toggleFollow = async () => {
     if (!profile) return;
+    if (isGuest) { setShowGate(true); return; }
     const res = await fetch("/api/follow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,8 +70,31 @@ export default function ProfileClient({ userId }: { userId: string }) {
   if (error) return <div className="max-w-2xl mx-auto px-4 pt-12 text-center"><p style={{ color: "var(--text-muted)" }}>{error}</p></div>;
   if (!profile) return <div className="max-w-2xl mx-auto px-4 pt-12 text-center"><p style={{ color: "var(--text-muted)" }}>Loading...</p></div>;
 
+  const GateModal = showGate ? (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{ background: "rgba(45,36,36,0.6)", backdropFilter: "blur(4px)" }}
+      onClick={() => setShowGate(false)}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-sm w-full text-center"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>Join The Mall</h2>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Create a profile to follow people and engage.</p>
+        <div className="space-y-3">
+          <a href="/signup" className="block text-center py-3 rounded-full font-semibold no-underline text-sm" style={{ background: "var(--accent)", color: "var(--text-inverse)" }}>Create Profile</a>
+          <a href="/login" className="block text-center py-3 rounded-full font-semibold no-underline text-sm" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>Already have one? Log in</a>
+        </div>
+        <button onClick={() => setShowGate(false)} className="mt-4 text-xs bg-transparent border-none cursor-pointer" style={{ color: "var(--text-muted)" }}>Just browsing</button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="max-w-2xl mx-auto">
+      {GateModal}
       {/* Cover */}
       <div
         className="h-48 md:h-56"

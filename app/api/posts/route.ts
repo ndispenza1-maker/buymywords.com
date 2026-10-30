@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 
-// GET — chronological feed
+// GET — chronological feed (open to everyone)
 export async function GET(request: NextRequest) {
   const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor");
@@ -13,12 +12,18 @@ export async function GET(request: NextRequest) {
 
   const sql = getSQL();
 
+  // If logged in, include per-user "liked" status; otherwise default false
+  const userId = user?.id || null;
+
   const posts = cursor
     ? await sql`
         SELECT p.*, u.display_name, u.avatar_url,
           (SELECT COUNT(*) FROM likes WHERE post_id = p.id)::int AS like_count,
           (SELECT COUNT(*) FROM comments WHERE post_id = p.id)::int AS comment_count,
-          EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${user.id}) AS liked
+          CASE WHEN ${userId}::uuid IS NOT NULL
+            THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+            ELSE false
+          END AS liked
         FROM posts p
         JOIN users u ON p.user_id = u.id
         WHERE p.created_at < ${cursor}
@@ -29,7 +34,10 @@ export async function GET(request: NextRequest) {
         SELECT p.*, u.display_name, u.avatar_url,
           (SELECT COUNT(*) FROM likes WHERE post_id = p.id)::int AS like_count,
           (SELECT COUNT(*) FROM comments WHERE post_id = p.id)::int AS comment_count,
-          EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${user.id}) AS liked
+          CASE WHEN ${userId}::uuid IS NOT NULL
+            THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+            ELSE false
+          END AS liked
         FROM posts p
         JOIN users u ON p.user_id = u.id
         ORDER BY p.created_at DESC
@@ -39,7 +47,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ posts });
 }
 
-// POST — create a post
+// POST — create a post (auth required)
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,79 +1,120 @@
-import Link from "next/link";
+import { getAuthUser } from "@/lib/auth";
+import NavBar from "@/components/NavBar";
+import FeedClient from "./feed/FeedClient";
 
-export default function LandingPage() {
+export default async function HomePage() {
+  const user = await getAuthUser();
+
   return (
-    <main
-      className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{
-        background: "linear-gradient(135deg, #2D2424 0%, #4A2F2F 30%, #6B3A3A 50%, #F4845F 80%, #F7B267 100%)",
-      }}
-    >
-      <div className="text-center max-w-2xl">
-        {/* Brand */}
-        <div className="mb-8">
-          <h1
-            className="text-6xl md:text-8xl font-bold mb-1"
-            style={{ color: "#F7B267" }}
-          >
-            The Mall
-          </h1>
-          <p
-            className="text-sm tracking-widest"
-            style={{ color: "#C4A1A1" }}
-          >
-            buymywords.com
-          </p>
-        </div>
+    <>
+      <NavBar user={user} />
+      <div className="pt-16 min-h-screen" style={{ background: "var(--bg)" }}>
+        <div className="max-w-6xl mx-auto px-4 flex gap-6">
+          {/* Left sidebar */}
+          <aside className="hidden lg:block w-64 shrink-0">
+            <div
+              className="sticky top-20 rounded-xl p-4"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            >
+              {user ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+                      style={{
+                        background: user.avatar_url
+                          ? `url(${user.avatar_url}) center/cover`
+                          : "var(--sunset-warm)",
+                        color: "var(--text-inverse)",
+                      }}
+                    >
+                      {!user.avatar_url && user.display_name[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{user.display_name}</p>
+                    </div>
+                  </div>
+                  <nav className="space-y-2">
+                    <a
+                      href={`/profile/${user.id}`}
+                      className="block text-sm py-1 no-underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      👤 My Profile
+                    </a>
+                    <a
+                      href="/messages"
+                      className="block text-sm py-1 no-underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      ✉️ Messages
+                    </a>
+                    <a
+                      href="/notifications"
+                      className="block text-sm py-1 no-underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      🔔 Notifications
+                    </a>
+                    <a
+                      href="/settings"
+                      className="block text-sm py-1 no-underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      ⚙️ Settings
+                    </a>
+                  </nav>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--text)" }}>
+                    Welcome to The Mall
+                  </h3>
+                  <p className="text-xs leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
+                    Browse what people are posting. Create a profile to join the conversation.
+                  </p>
+                  <div className="space-y-2">
+                    <a
+                      href="/signup"
+                      className="block text-center text-sm py-2 rounded-full font-semibold no-underline"
+                      style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+                    >
+                      Create Profile
+                    </a>
+                    <a
+                      href="/login"
+                      className="block text-center text-sm py-2 rounded-full font-semibold no-underline"
+                      style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+                    >
+                      Log in
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
+          </aside>
 
-        {/* Tagline */}
-        <p
-          className="text-xl md:text-2xl mb-4 leading-relaxed"
-          style={{ color: "#FDF8F4" }}
-        >
-          A clean space for real people.
-        </p>
-        <p
-          className="text-base md:text-lg mb-12 leading-relaxed"
-          style={{ color: "#C4A1A1" }}
-        >
-          No bots. No algorithm. No noise.
-          <br />
-          Just people connecting, building, and selling what they make.
-        </p>
+          {/* Center feed */}
+          <main className="flex-1 max-w-xl">
+            <FeedClient currentUserId={user?.id || null} />
+          </main>
 
-        {/* CTA */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/signup"
-            className="px-8 py-4 rounded-full text-lg font-semibold no-underline transition-all"
-            style={{
-              background: "#F4845F",
-              color: "#FDF8F4",
-            }}
-          >
-            Join The Mall
-          </Link>
-          <Link
-            href="/login"
-            className="px-8 py-4 rounded-full text-lg font-semibold no-underline transition-all"
-            style={{
-              background: "rgba(255,255,255,0.1)",
-              color: "#FDF8F4",
-              border: "1px solid rgba(244,132,95,0.4)",
-            }}
-          >
-            Log in
-          </Link>
+          {/* Right sidebar */}
+          <aside className="hidden xl:block w-72 shrink-0">
+            <div
+              className="sticky top-20 rounded-xl p-4"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            >
+              <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--text-muted)" }}>
+                The Mall
+              </h3>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                No bots. No algorithm. No noise. Just a chronological feed of what real people are posting right now.
+              </p>
+            </div>
+          </aside>
         </div>
       </div>
-
-      {/* Footer */}
-      <p
-        className="absolute bottom-6 text-xs"
-        style={{ color: "#8B6F6F" }}
-      >
-        Humans only. &copy; {new Date().getFullYear()}
-      </p>
-    </main>
+    </>
   );
 }
