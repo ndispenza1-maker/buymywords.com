@@ -8,6 +8,7 @@ interface ProfileData {
   bio: string;
   avatar_url: string | null;
   account_type: string | null;
+  store_built: boolean;
   follower_count: number;
   following_count: number;
   is_following: boolean;
@@ -217,6 +218,19 @@ export default function ProfileCard({
                       🔨 Build Profile
                     </a>
                   )}
+                  {profileComplete && profile.account_type === "store_owner" && (
+                    <a
+                      href={profile.store_built ? `/store/${profile.id}` : "/build-store"}
+                      className="block text-center py-2 rounded-full text-sm font-semibold no-underline"
+                      style={{
+                        background: profile.store_built ? "var(--bg)" : "var(--accent)",
+                        color: profile.store_built ? "var(--accent)" : "var(--text-inverse)",
+                        border: profile.store_built ? "1px solid var(--accent)" : "none",
+                      }}
+                    >
+                      {profile.store_built ? "🏪 Go to Store" : "🏪 Build My Store"}
+                    </a>
+                  )}
                 </div>
               ) : currentUserId && profileComplete ? (
                 <div className="flex gap-2">
@@ -243,6 +257,21 @@ export default function ProfileCard({
                   </button>
                 </div>
               ) : null}
+
+              {/* Visit Store — visible to everyone on a store owner's card */}
+              {!profile.is_self && profile.account_type === "store_owner" && profile.store_built && (
+                <a
+                  href={`/store/${profile.id}`}
+                  className="block text-center py-2 rounded-full text-sm font-semibold no-underline mt-2"
+                  style={{
+                    background: "var(--bg)",
+                    color: "var(--accent)",
+                    border: "1px solid var(--accent)",
+                  }}
+                >
+                  🏪 Visit Store
+                </a>
+              )}
             </div>
           </>
         ) : null}
