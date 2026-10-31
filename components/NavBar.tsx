@@ -43,7 +43,7 @@ export default function NavBar({ user }: { user: NavUser | null }) {
           The Mall
         </span>
         <span className="text-[10px] tracking-wider" style={{ color: "var(--sunset-mauve)" }}>
-          buymywords.com
+          themallofprojects.com
         </span>
       </Link>
 

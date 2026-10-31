@@ -44,7 +44,7 @@ export default function LoginPage() {
               The Mall
             </h1>
             <p className="text-[10px] tracking-widest" style={{ color: "var(--text-muted)" }}>
-              buymywords.com
+              themallofprojects.com
             </p>
           </div>
         </Link>

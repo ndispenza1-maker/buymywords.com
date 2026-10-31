@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   // Upload — auto-crops to face, 400x400
   const result = await cloudinary.uploader.upload(dataUri, {
-    folder: "buymywords/avatars",
+    folder: "themallofprojects/avatars",
     public_id: user.id,
     overwrite: true,
     transformation: [

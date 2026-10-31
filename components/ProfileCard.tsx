@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useWizard } from "./WizardContext";
 
 interface ProfileData {
   id: string;
@@ -9,6 +10,8 @@ interface ProfileData {
   avatar_url: string | null;
   account_type: string | null;
   store_built: boolean;
+  store_external_url: string | null;
+  store_type: string | null;
   follower_count: number;
   following_count: number;
   is_following: boolean;
@@ -31,6 +34,7 @@ export default function ProfileCard({
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { openWizard } = useWizard();
 
   // Load profile on mount
   useState(() => {
@@ -204,6 +208,26 @@ export default function ProfileCard({
                   <strong>{profile.follower_count}</strong>{" "}
                   <span style={{ color: "var(--text-muted)" }}>followers</span>
                 </span>
+                {profile.is_self && profile.account_type === "store_owner" && !profile.store_built && (
+                  <button
+                    onClick={() => { onClose(); openWizard(); }}
+                    className="border-none bg-transparent cursor-pointer p-0"
+                    style={{ color: "var(--accent)", font: "inherit", fontSize: "inherit" }}
+                  >
+                    Get Started
+                  </button>
+                )}
+                {profile.account_type === "store_owner" && profile.store_built && (
+                  <a
+                    href={profile.store_external_url || `/store/${profile.id}`}
+                    target={profile.store_external_url ? "_blank" : undefined}
+                    rel={profile.store_external_url ? "noopener noreferrer" : undefined}
+                    className="no-underline"
+                    style={{ color: "var(--accent)", font: "inherit", fontSize: "inherit" }}
+                  >
+                    Visit Project
+                  </a>
+                )}
               </div>
 
               {/* Action buttons */}
@@ -216,19 +240,6 @@ export default function ProfileCard({
                       style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
                     >
                       🔨 Build Profile
-                    </a>
-                  )}
-                  {profileComplete && profile.account_type === "store_owner" && (
-                    <a
-                      href={profile.store_built ? `/store/${profile.id}` : "/build-store"}
-                      className="block text-center py-2 rounded-full text-sm font-semibold no-underline"
-                      style={{
-                        background: profile.store_built ? "var(--bg)" : "var(--accent)",
-                        color: profile.store_built ? "var(--accent)" : "var(--text-inverse)",
-                        border: profile.store_built ? "1px solid var(--accent)" : "none",
-                      }}
-                    >
-                      {profile.store_built ? "🏪 Go to Store" : "🏪 Build My Store"}
                     </a>
                   )}
                 </div>
@@ -257,21 +268,6 @@ export default function ProfileCard({
                   </button>
                 </div>
               ) : null}
-
-              {/* Visit Store — visible to everyone on a store owner's card */}
-              {!profile.is_self && profile.account_type === "store_owner" && profile.store_built && (
-                <a
-                  href={`/store/${profile.id}`}
-                  className="block text-center py-2 rounded-full text-sm font-semibold no-underline mt-2"
-                  style={{
-                    background: "var(--bg)",
-                    color: "var(--accent)",
-                    border: "1px solid var(--accent)",
-                  }}
-                >
-                  🏪 Visit Store
-                </a>
-              )}
             </div>
           </>
         ) : null}

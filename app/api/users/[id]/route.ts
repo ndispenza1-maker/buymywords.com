@@ -11,8 +11,11 @@ export async function GET(
   const sql = getSQL();
 
   const users = await sql`
-    SELECT id, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete, store_built
-    FROM users WHERE id = ${userId}
+    SELECT u.id, u.display_name, u.bio, u.avatar_url, u.cover_url, u.created_at, u.account_type, u.profile_complete, u.store_built,
+      s.external_url AS store_external_url, s.store_type
+    FROM users u
+    LEFT JOIN stores s ON s.user_id = u.id
+    WHERE u.id = ${userId}
   `;
 
   if (users.length === 0) {

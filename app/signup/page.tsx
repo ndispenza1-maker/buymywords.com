@@ -47,7 +47,7 @@ export default function SignupPage() {
               The Mall
             </h1>
             <p className="text-[10px] tracking-widest" style={{ color: "var(--text-muted)" }}>
-              buymywords.com
+              themallofprojects.com
             </p>
           </div>
         </Link>
@@ -122,6 +122,13 @@ export default function SignupPage() {
           >
             {loading ? "Creating..." : "Join The Mall"}
           </button>
+
+          <p className="text-center text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+            By signing up, you agree to our{" "}
+            <Link href="/terms" style={{ color: "var(--accent)" }}>
+              Terms of Service
+            </Link>
+          </p>
         </form>
 
         <p className="text-center text-sm mt-6" style={{ color: "var(--text-muted)" }}>
