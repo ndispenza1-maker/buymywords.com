@@ -1,6 +1,7 @@
 import { getAuthUser } from "@/lib/auth";
 import NavBar from "@/components/NavBar";
 import FeedClient from "./feed/FeedClient";
+import ProfileLink from "@/components/ProfileLink";
 
 function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }) {
   if (!user) {
@@ -80,9 +81,15 @@ function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }
         </div>
       </div>
       <nav className="space-y-2">
-        <a href={`/profile/${user.id}`} className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
+        <ProfileLink
+          userId={user.id}
+          currentUserId={user.id}
+          profileComplete={user.profile_complete}
+          className="block text-sm py-1"
+          style={{ color: "var(--text)" }}
+        >
           👤 My Profile
-        </a>
+        </ProfileLink>
         <a href="/messages" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
           ✉️ Messages
         </a>

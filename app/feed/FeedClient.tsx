@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import ProfileCard from "@/components/ProfileCard";
 
 interface Post {
   id: string;
@@ -98,11 +98,13 @@ function PostCard({
   post,
   onLike,
   onGate,
+  onProfile,
   isGuest,
 }: {
   post: Post;
   onLike: (id: string) => void;
   onGate: () => void;
+  onProfile: (userId: string) => void;
   isGuest: boolean;
 }) {
   const [showComments, setShowComments] = useState(false);
@@ -141,7 +143,7 @@ function PostCard({
     >
       {/* Author */}
       <div className="flex items-center gap-3 mb-3">
-        <Link href={`/profile/${post.user_id}`}>
+        <button onClick={() => onProfile(post.user_id)} className="bg-transparent border-none cursor-pointer p-0">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
             style={{
@@ -153,13 +155,13 @@ function PostCard({
           >
             {!post.avatar_url && post.display_name[0]?.toUpperCase()}
           </div>
-        </Link>
+        </button>
         <div>
-          <Link href={`/profile/${post.user_id}`} className="no-underline">
+          <button onClick={() => onProfile(post.user_id)} className="bg-transparent border-none cursor-pointer p-0">
             <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
               {post.display_name}
             </span>
-          </Link>
+          </button>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             {timeAgo(post.created_at)}
           </p>
@@ -263,6 +265,7 @@ export default function FeedClient({
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
   const [showGate, setShowGate] = useState(false);
+  const [profileCardUserId, setProfileCardUserId] = useState<string | null>(null);
 
   // Can't engage if not logged in OR logged in but profile not built
   const canEngage = !!currentUserId && profileComplete;
@@ -316,6 +319,15 @@ export default function FeedClient({
     <div>
       {showGate && <AuthGate onClose={() => setShowGate(false)} hasAccount={hasAccount} />}
 
+      {profileCardUserId && (
+        <ProfileCard
+          userId={profileCardUserId}
+          currentUserId={currentUserId}
+          profileComplete={profileComplete}
+          onClose={() => setProfileCardUserId(null)}
+        />
+      )}
+
       {/* Composer */}
       <div
         className="rounded-xl p-4 mb-4"
@@ -360,6 +372,7 @@ export default function FeedClient({
             post={post}
             onLike={toggleLike}
             onGate={() => setShowGate(true)}
+            onProfile={(id) => setProfileCardUserId(id)}
             isGuest={isGuest}
           />
         ))

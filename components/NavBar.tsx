@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import ProfileCard from "./ProfileCard";
 
 interface NavUser {
   id: string;
@@ -14,6 +15,7 @@ interface NavUser {
 export default function NavBar({ user }: { user: NavUser | null }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showProfileCard, setShowProfileCard] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -118,14 +120,13 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                     </Link>
                   ) : (
                     <>
-                      <Link
-                        href={`/profile/${user.id}`}
-                        className="block px-4 py-2 text-sm no-underline"
+                      <button
+                        onClick={() => { setMenuOpen(false); setShowProfileCard(true); }}
+                        className="block w-full text-left px-4 py-2 text-sm bg-transparent border-none cursor-pointer"
                         style={{ color: "var(--text)" }}
-                        onClick={() => setMenuOpen(false)}
                       >
                         👤 My Profile
-                      </Link>
+                      </button>
                       <Link
                         href="/settings"
                         className="block px-4 py-2 text-sm no-underline"
@@ -150,6 +151,14 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                 </div>
               )}
             </div>
+            {showProfileCard && (
+              <ProfileCard
+                userId={user.id}
+                currentUserId={user.id}
+                profileComplete={user.profile_complete}
+                onClose={() => setShowProfileCard(false)}
+              />
+            )}
           </>
         ) : (
           <>

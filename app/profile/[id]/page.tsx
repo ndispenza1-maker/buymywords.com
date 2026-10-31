@@ -1,21 +1,6 @@
-import { getAuthUser } from "@/lib/auth";
-import NavBar from "@/components/NavBar";
-import ProfileClient from "./ProfileClient";
+import { redirect } from "next/navigation";
 
-export default async function ProfilePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const user = await getAuthUser();
-  const { id } = await params;
-
-  return (
-    <>
-      <NavBar user={user} />
-      <div className="pt-14 min-h-screen" style={{ background: "var(--bg)" }}>
-        <ProfileClient userId={id} currentUserId={user?.id || null} />
-      </div>
-    </>
-  );
+// Profiles are now overlay cards on the hub. Redirect any direct links.
+export default function ProfileRedirect() {
+  redirect("/");
 }

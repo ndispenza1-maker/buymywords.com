@@ -11,7 +11,7 @@ export async function GET(
   const sql = getSQL();
 
   const users = await sql`
-    SELECT id, display_name, bio, avatar_url, cover_url, created_at
+    SELECT id, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete
     FROM users WHERE id = ${userId}
   `;
 
