@@ -13,6 +13,8 @@ export interface User {
   avatar_url: string | null;
   cover_url: string | null;
   created_at: string;
+  account_type: string | null; // 'shopper' | 'store_owner' | null
+  profile_complete: boolean;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -48,7 +50,7 @@ export async function getAuthUser(): Promise<User | null> {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     const sql = getSQL();
     const rows = await sql`
-      SELECT id, email, display_name, bio, avatar_url, cover_url, created_at
+      SELECT id, email, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete
       FROM users WHERE id = ${decoded.userId}
     `;
     return (rows[0] as User) || null;

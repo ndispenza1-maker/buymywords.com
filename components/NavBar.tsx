@@ -2,13 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 
-export default function NavBar({
-  user,
-}: {
-  user: { id: string; display_name: string; avatar_url: string | null } | null;
-}) {
+interface NavUser {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  profile_complete: boolean;
+}
+
+export default function NavBar({ user }: { user: NavUser | null }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
 
   return (
     <nav
@@ -54,40 +71,109 @@ export default function NavBar({
             >
               Home
             </Link>
-            <Link
-              href="/messages"
-              className="text-sm no-underline"
-              style={{
-                color: pathname === "/messages" ? "var(--sunset-peach)" : "var(--text-inverse)",
-              }}
-            >
-              Messages
-            </Link>
-            <Link
-              href="/notifications"
-              className="text-sm no-underline"
-              style={{
-                color: pathname === "/notifications" ? "var(--sunset-peach)" : "var(--text-inverse)",
-              }}
-            >
-              Notifications
-            </Link>
-            <Link
-              href={`/profile/${user.id}`}
-              className="flex items-center gap-2 no-underline"
-            >
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{
-                  background: user.avatar_url
-                    ? `url(${user.avatar_url}) center/cover`
-                    : "var(--sunset-warm)",
-                  color: "var(--text-inverse)",
-                }}
+            {user.profile_complete && (
+              <>
+                <Link
+                  href="/messages"
+                  className="text-sm no-underline"
+                  style={{
+                    color: pathname === "/messages" ? "var(--sunset-peach)" : "var(--text-inverse)",
+                  }}
+                >
+                  Messages
+                </Link>
+                <Link
+                  href="/notifications"
+                  className="text-sm no-underline"
+                  style={{
+                    color:
+                      pathname === "/notifications" ? "var(--sunset-peach)" : "var(--text-inverse)",
+                  }}
+                >
+                  Notifications
+                </Link>
+              </>
+            )}
+
+            {/* Avatar + dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0"
               >
-                {!user.avatar_url && user.display_name[0]?.toUpperCase()}
-              </div>
-            </Link>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    background:
+                      user.avatar_url
+                        ? `url(${user.avatar_url}) center/cover`
+                        : user.profile_complete
+                          ? "var(--sunset-warm)"
+                          : "#999",
+                    color: "var(--text-inverse)",
+                  }}
+                >
+                  {!user.avatar_url && user.display_name[0]?.toUpperCase()}
+                </div>
+              </button>
+
+              {menuOpen && (
+                <div
+                  className="absolute right-0 top-11 w-48 rounded-xl py-2 shadow-lg"
+                  style={{
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      {user.display_name}
+                    </p>
+                  </div>
+
+                  {!user.profile_complete ? (
+                    <Link
+                      href="/build-profile"
+                      className="block px-4 py-2 text-sm no-underline font-semibold"
+                      style={{ color: "var(--accent)" }}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      🔨 Build Profile
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href={`/profile/${user.id}`}
+                        className="block px-4 py-2 text-sm no-underline"
+                        style={{ color: "var(--text)" }}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        👤 My Profile
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 text-sm no-underline"
+                        style={{ color: "var(--text)" }}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        ⚙️ Settings
+                      </Link>
+                    </>
+                  )}
+
+                  <button
+                    onClick={async () => {
+                      await fetch("/api/auth/logout", { method: "POST" });
+                      window.location.href = "/";
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm bg-transparent border-none cursor-pointer"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <>

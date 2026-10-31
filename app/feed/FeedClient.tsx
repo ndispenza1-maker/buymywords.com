@@ -25,7 +25,7 @@ function timeAgo(date: string) {
 }
 
 /* ── Auth gate modal ── */
-function AuthGate({ onClose }: { onClose: () => void }) {
+function AuthGate({ onClose, hasAccount }: { onClose: () => void; hasAccount: boolean }) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center px-4"
@@ -37,28 +37,50 @@ function AuthGate({ onClose }: { onClose: () => void }) {
         style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
-          Join The Mall
-        </h2>
-        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-          Create a profile to like, comment, post, and connect with people.
-        </p>
-        <div className="space-y-3">
-          <a
-            href="/signup"
-            className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
-            style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-          >
-            Create Profile
-          </a>
-          <a
-            href="/login"
-            className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
-            style={{ background: "var(--accent-light)", color: "var(--accent)" }}
-          >
-            Already have one? Log in
-          </a>
-        </div>
+        {hasAccount ? (
+          /* Logged in but profile not built */
+          <>
+            <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
+              Build Your Profile
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+              You need a profile to like, comment, post, and connect with people.
+            </p>
+            <a
+              href="/build-profile"
+              className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              🔨 Build Profile
+            </a>
+          </>
+        ) : (
+          /* Not logged in at all */
+          <>
+            <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
+              Join The Mall
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+              Create an account to like, comment, post, and connect with people.
+            </p>
+            <div className="space-y-3">
+              <a
+                href="/signup"
+                className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
+                style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+              >
+                Sign Up
+              </a>
+              <a
+                href="/login"
+                className="block text-center py-3 rounded-full font-semibold no-underline text-sm"
+                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+              >
+                Already have one? Log in
+              </a>
+            </div>
+          </>
+        )}
         <button
           onClick={onClose}
           className="mt-4 text-xs bg-transparent border-none cursor-pointer"
@@ -230,13 +252,22 @@ function PostCard({
 }
 
 /* ── Feed ── */
-export default function FeedClient({ currentUserId }: { currentUserId: string | null }) {
+export default function FeedClient({
+  currentUserId,
+  profileComplete,
+}: {
+  currentUserId: string | null;
+  profileComplete: boolean;
+}) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
   const [showGate, setShowGate] = useState(false);
 
-  const isGuest = !currentUserId;
+  // Can't engage if not logged in OR logged in but profile not built
+  const canEngage = !!currentUserId && profileComplete;
+  const hasAccount = !!currentUserId;
+  const isGuest = !canEngage;
 
   const loadPosts = useCallback(async () => {
     const res = await fetch("/api/posts");
@@ -283,7 +314,7 @@ export default function FeedClient({ currentUserId }: { currentUserId: string | 
 
   return (
     <div>
-      {showGate && <AuthGate onClose={() => setShowGate(false)} />}
+      {showGate && <AuthGate onClose={() => setShowGate(false)} hasAccount={hasAccount} />}
 
       {/* Composer */}
       <div
