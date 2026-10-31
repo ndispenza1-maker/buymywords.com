@@ -71,30 +71,6 @@ export default function NavBar({ user }: { user: NavUser | null }) {
             >
               Home
             </Link>
-            {user.profile_complete && (
-              <>
-                <Link
-                  href="/messages"
-                  className="text-sm no-underline"
-                  style={{
-                    color: pathname === "/messages" ? "var(--sunset-peach)" : "var(--text-inverse)",
-                  }}
-                >
-                  Messages
-                </Link>
-                <Link
-                  href="/notifications"
-                  className="text-sm no-underline"
-                  style={{
-                    color:
-                      pathname === "/notifications" ? "var(--sunset-peach)" : "var(--text-inverse)",
-                  }}
-                >
-                  Notifications
-                </Link>
-              </>
-            )}
-
             {/* Avatar + dropdown */}
             <div className="relative" ref={menuRef}>
               <button
