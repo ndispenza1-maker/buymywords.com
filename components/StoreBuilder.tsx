@@ -68,6 +68,18 @@ export default function StoreBuilder({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // On mount, extract preview from last assistant message if no published content yet
+  useEffect(() => {
+    if (!preview && messages.length > 0) {
+      const lastAssistant = [...messages].reverse().find(m => m.role === "assistant" && m.content);
+      if (lastAssistant) {
+        const html = extractHTML(lastAssistant.content);
+        if (html) setPreview(html);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const saveApiKey = async () => {
     if (!apiKey.trim()) {
       setSetupError("Enter your API key");
