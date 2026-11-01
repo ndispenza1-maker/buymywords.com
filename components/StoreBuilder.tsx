@@ -255,16 +255,66 @@ export default function StoreBuilder({
     );
   }
 
-  // Builder view: chat + preview
+  // Builder view: preview + chat
   return (
     <main className="flex" style={{ height: "calc(100vh - 56px)" }}>
+      {/* Preview panel */}
+      <div className="flex-1 flex flex-col" style={{ background: "var(--bg)" }}>
+        {/* Preview header */}
+        <div
+          className="px-4 py-2 flex items-center justify-between"
+          style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-card)" }}
+        >
+          <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+            Live Preview
+          </p>
+          <div className="flex items-center gap-2">
+            {saveMsg && (
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>{saveMsg}</span>
+            )}
+            <button
+              onClick={handlePublish}
+              disabled={!preview || saving || published}
+              className="text-xs px-3 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40 font-semibold"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              {saving ? "Publishing..." : published ? "✅ Published" : "🚀 Publish"}
+            </button>
+          </div>
+        </div>
+
+        {/* Preview content */}
+        <div className="flex-1">
+          {preview ? (
+            <iframe
+              srcDoc={preview}
+              sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+              className="w-full h-full border-none"
+              title="Store Preview"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <p className="text-4xl mb-3">🏗️</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  Your store will appear here
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  Start chatting with your AI to build it
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Chat panel */}
       <div
         className="flex flex-col"
         style={{
           width: "380px",
           minWidth: "380px",
-          borderRight: "1px solid var(--border)",
+          borderLeft: "1px solid var(--border)",
           background: "var(--bg-card)",
         }}
       >
@@ -317,7 +367,7 @@ export default function StoreBuilder({
               {msg.role === "assistant" ? (
                 <div className="text-xs leading-relaxed whitespace-pre-wrap">
                   {msg.content.includes("<!DOCTYPE") || msg.content.includes("```html")
-                    ? "✅ Generated your store page — check the preview →"
+                    ? "✅ Generated your store page — check the preview ←"
                     : msg.content}
                 </div>
               ) : (
@@ -364,55 +414,6 @@ export default function StoreBuilder({
         </div>
       </div>
 
-      {/* Preview panel */}
-      <div className="flex-1 flex flex-col" style={{ background: "var(--bg)" }}>
-        {/* Preview header */}
-        <div
-          className="px-4 py-2 flex items-center justify-between"
-          style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-card)" }}
-        >
-          <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-            Live Preview
-          </p>
-          <div className="flex items-center gap-2">
-            {saveMsg && (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>{saveMsg}</span>
-            )}
-            <button
-              onClick={handlePublish}
-              disabled={!preview || saving || published}
-              className="text-xs px-3 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40 font-semibold"
-              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-            >
-              {saving ? "Publishing..." : published ? "✅ Published" : "🚀 Publish"}
-            </button>
-          </div>
-        </div>
-
-        {/* Preview content */}
-        <div className="flex-1">
-          {preview ? (
-            <iframe
-              srcDoc={preview}
-              sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-              className="w-full h-full border-none"
-              title="Store Preview"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-4xl mb-3">🏗️</p>
-                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                  Your store will appear here
-                </p>
-                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  Start chatting with your AI to build it
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </main>
   );
 }
