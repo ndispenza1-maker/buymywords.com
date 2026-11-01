@@ -92,16 +92,21 @@ export default function StoreBuilder({
   };
 
   const extractHTML = (content: string): string => {
-    // Try to extract HTML from markdown code blocks
+    // Try to extract HTML from markdown code blocks (closed fence)
     const htmlBlock = content.match(/```html?\s*\n([\s\S]*?)```/);
     if (htmlBlock) return htmlBlock[1].trim();
 
-    // If the content starts with <!DOCTYPE or <html, use it directly
-    if (content.trim().startsWith("<!DOCTYPE") || content.trim().startsWith("<html")) {
-      return content.trim();
-    }
+    // Handle unclosed code block — LLMs sometimes don't close the fence
+    const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
+    if (unclosed && unclosed[1].includes("<html")) return unclosed[1].trim();
 
-    // Return as-is — might be partial or conversational
+    // Find <!DOCTYPE or <html anywhere in the content
+    const docIdx = content.indexOf("<!DOCTYPE");
+    const htmlIdx = content.indexOf("<html");
+    const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
+    if (startIdx >= 0) return content.substring(startIdx).trim();
+
+    // Return empty — conversational response, no HTML
     return "";
   };
 
