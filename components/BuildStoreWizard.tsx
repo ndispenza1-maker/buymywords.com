@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useWizard } from "./WizardContext";
 
-type StoreType = "existing" | "llm" | null;
+type StoreType = "existing" | "fresh" | null;
 type Step = "choose" | "setup" | "review";
 
 export default function BuildStoreWizard() {
@@ -13,8 +13,7 @@ export default function BuildStoreWizard() {
   const [storeName, setStoreName] = useState("");
   const [storeDescription, setStoreDescription] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
-  const [llmProvider, setLlmProvider] = useState("openai");
-  const [llmApiKey, setLlmApiKey] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,8 +25,7 @@ export default function BuildStoreWizard() {
     setStoreName("");
     setStoreDescription("");
     setExternalUrl("");
-    setLlmProvider("openai");
-    setLlmApiKey("");
+
     setError("");
   };
 
@@ -50,10 +48,7 @@ export default function BuildStoreWizard() {
       setError("Paste your project URL");
       return;
     }
-    if (storeType === "llm" && !llmApiKey.trim()) {
-      setError("Paste your API key");
-      return;
-    }
+
     setError("");
     setStep("review");
   };
@@ -70,8 +65,8 @@ export default function BuildStoreWizard() {
           store_description: storeDescription.trim() || null,
           store_type: storeType,
           external_url: storeType === "existing" ? externalUrl.trim() : null,
-          llm_provider: storeType === "llm" ? llmProvider : null,
-          llm_api_key: storeType === "llm" ? llmApiKey.trim() : null,
+          llm_provider: null,
+          llm_api_key: null,
         }),
       });
       if (!res.ok) {
@@ -120,7 +115,7 @@ export default function BuildStoreWizard() {
           <div>
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>
               {step === "choose" && "Build Your Project"}
-              {step === "setup" && (storeType === "existing" ? "Connect Your Project" : "Build with AI")}
+              {step === "setup" && (storeType === "existing" ? "Connect Your Project" : "Start Fresh")}
               {step === "review" && "Review & Launch"}
             </h2>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
@@ -167,7 +162,7 @@ export default function BuildStoreWizard() {
               </button>
 
               <button
-                onClick={() => handleChoose("llm")}
+                onClick={() => handleChoose("fresh")}
                 className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all"
                 style={{
                   background: "var(--bg)",
@@ -177,13 +172,13 @@ export default function BuildStoreWizard() {
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🤖</span>
+                  <span className="text-2xl">🏗️</span>
                   <div>
                     <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-                      Build with AI
+                      Start Fresh
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                      Start from scratch — connect your LLM
+                      Get a blank store page — build it your way
                     </p>
                   </div>
                 </div>
@@ -238,41 +233,7 @@ export default function BuildStoreWizard() {
                 </div>
               )}
 
-              {storeType === "llm" && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                      LLM Provider
-                    </label>
-                    <select
-                      value={llmProvider}
-                      onChange={(e) => setLlmProvider(e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg text-sm outline-none cursor-pointer"
-                      style={inputStyle}
-                    >
-                      <option value="openai">OpenAI</option>
-                      <option value="anthropic">Anthropic</option>
-                      <option value="google">Google AI</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      value={llmApiKey}
-                      onChange={(e) => setLlmApiKey(e.target.value)}
-                      placeholder="sk-..."
-                      className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-                      style={inputStyle}
-                    />
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                      Your key is stored securely and only used by your store.
-                    </p>
-                  </div>
-                </>
-              )}
+
 
               {error && (
                 <p className="text-sm text-center" style={{ color: "#E85D27" }}>
@@ -319,7 +280,7 @@ export default function BuildStoreWizard() {
                 <div>
                   <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Type</p>
                   <p className="text-sm" style={{ color: "var(--text)" }}>
-                    {storeType === "existing" ? "🔗 Connected Project" : "🤖 AI Build"}
+                    {storeType === "existing" ? "🔗 Connected Project" : "🏗️ Fresh Build"}
                   </p>
                 </div>
                 {storeType === "existing" && (
@@ -328,14 +289,7 @@ export default function BuildStoreWizard() {
                     <p className="text-sm" style={{ color: "var(--accent)" }}>{externalUrl}</p>
                   </div>
                 )}
-                {storeType === "llm" && (
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>LLM Provider</p>
-                    <p className="text-sm" style={{ color: "var(--text)" }}>
-                      {llmProvider === "openai" ? "OpenAI" : llmProvider === "anthropic" ? "Anthropic" : "Google AI"}
-                    </p>
-                  </div>
-                )}
+
               </div>
 
               {error && (
