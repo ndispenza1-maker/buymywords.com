@@ -137,10 +137,10 @@ export default async function HomePage() {
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
             >
               <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--text-muted)" }}>
-                The Mall
+                The Mall Shared Space
               </h3>
               <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                No bots. No algorithm. No noise. Just a chronological feed of what real people are posting right now.
+                No bots. No algorithm. No noise. Just Real people using their words to sell their products, views and ideas.
               </p>
             </div>
           </aside>
