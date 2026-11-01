@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Store name and type are required" }, { status: 400 });
   }
 
-  if (store_type !== "existing" && store_type !== "llm") {
+  if (store_type !== "existing" && store_type !== "fresh") {
     return NextResponse.json({ error: "Invalid store type" }, { status: 400 });
   }
 
@@ -38,9 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "External URL is required for existing projects" }, { status: 400 });
   }
 
-  if (store_type === "llm" && !llm_api_key) {
-    return NextResponse.json({ error: "API key is required for AI builds" }, { status: 400 });
-  }
+
 
   const sql = getSQL();
 
