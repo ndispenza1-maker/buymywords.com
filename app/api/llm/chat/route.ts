@@ -37,7 +37,12 @@ RULES:
 
 You are building their store. Make it look good.
 
-IMPORTANT: Add <base target="_blank"> inside the <head> tag so all links open in a new tab. The page will be rendered inside a sandboxed iframe.`;
+CRITICAL RULES FOR LINKS AND BUTTONS:
+- Add <base target="_blank"> inside the <head> tag — the page renders in a sandboxed iframe
+- For placeholder/coming-soon buttons, use <button onclick="alert('Coming Soon!')" ...> NOT <a href="/"> or <a href="#">
+- Never use href="/" or href="#" or any relative URL — these will break inside the iframe
+- Real external links (Stripe, PayPal, etc.) use full https:// URLs with target="_blank"
+- Placeholder links that aren't ready yet: use button elements, not anchor tags`;
 
 export async function POST(req: NextRequest) {
   const userId = await getAuthUserId();

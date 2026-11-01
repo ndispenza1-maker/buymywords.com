@@ -103,23 +103,40 @@ export default function StoreBuilder({
     }
   };
 
+  const sanitizeHTML = (html: string): string => {
+    // Inject <base target="_blank"> so all links open in new tabs, not inside the iframe
+    if (!html.includes('<base')) {
+      html = html.replace('<head>', '<head><base target="_blank">');
+    }
+    // Replace any href="/" or href="#..." with safe alternatives
+    html = html.replace(/href="\/(?!\/)([^"]*)"/g, 'href="javascript:void(0)"');
+    html = html.replace(/href="#([^"]*)"/g, 'href="javascript:void(0)"');
+    return html;
+  };
+
   const extractHTML = (content: string): string => {
+    let html = "";
+
     // Try to extract HTML from markdown code blocks (closed fence)
     const htmlBlock = content.match(/```html?\s*\n([\s\S]*?)```/);
-    if (htmlBlock) return htmlBlock[1].trim();
+    if (htmlBlock) { html = htmlBlock[1].trim(); }
 
     // Handle unclosed code block — LLMs sometimes don't close the fence
-    const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
-    if (unclosed && unclosed[1].includes("<html")) return unclosed[1].trim();
+    if (!html) {
+      const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
+      if (unclosed && unclosed[1].includes("<html")) { html = unclosed[1].trim(); }
+    }
 
     // Find <!DOCTYPE or <html anywhere in the content
-    const docIdx = content.indexOf("<!DOCTYPE");
-    const htmlIdx = content.indexOf("<html");
-    const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
-    if (startIdx >= 0) return content.substring(startIdx).trim();
+    if (!html) {
+      const docIdx = content.indexOf("<!DOCTYPE");
+      const htmlIdx = content.indexOf("<html");
+      const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
+      if (startIdx >= 0) { html = content.substring(startIdx).trim(); }
+    }
 
-    // Return empty — conversational response, no HTML
-    return "";
+    // Sanitize before returning
+    return html ? sanitizeHTML(html) : "";
   };
 
   const sendMessage = async () => {
