@@ -131,7 +131,7 @@ async function callAnthropic(apiKey: string, systemPrompt: string, messages: Arr
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-haiku-5-5",
       max_tokens: 8000,
       system: systemPrompt,
       messages: messages.map(m => ({

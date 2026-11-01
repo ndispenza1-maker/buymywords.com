@@ -211,7 +211,7 @@ export default function StoreBuilder({
                 style={inputStyle}
               >
                 <option value="openai">OpenAI (GPT-4o mini)</option>
-                <option value="anthropic">Anthropic (Claude Sonnet)</option>
+                <option value="anthropic">Anthropic (Claude Haiku 5.5)</option>
                 <option value="google">Google (Gemini Flash)</option>
                 <option value="grok">Grok (xAI)</option>
               </select>
