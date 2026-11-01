@@ -6,6 +6,33 @@ import { useWizard } from "./WizardContext";
 type StoreType = "existing" | "fresh" | null;
 type Step = "choose" | "setup" | "review";
 
+function InfoTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      className="relative inline-flex items-center justify-center ml-1.5 cursor-help"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShow(!show); }}
+    >
+      <span
+        className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
+        style={{ border: "1px solid var(--text-muted)", color: "var(--text-muted)" }}
+      >
+        i
+      </span>
+      {show && (
+        <span
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs leading-relaxed whitespace-normal w-56 text-center z-50"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text)", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default function BuildStoreWizard() {
   const { isOpen, closeWizard } = useWizard();
   const [step, setStep] = useState<Step>("choose");
@@ -16,6 +43,7 @@ export default function BuildStoreWizard() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [needAssistant, setNeedAssistant] = useState(false);
 
   if (!isOpen) return null;
 
@@ -25,7 +53,7 @@ export default function BuildStoreWizard() {
     setStoreName("");
     setStoreDescription("");
     setExternalUrl("");
-
+    setNeedAssistant(false);
     setError("");
   };
 
@@ -67,6 +95,7 @@ export default function BuildStoreWizard() {
           external_url: storeType === "existing" ? externalUrl.trim() : null,
           llm_provider: null,
           llm_api_key: null,
+          assistant_enabled: storeType === "fresh" ? needAssistant : false,
         }),
       });
       if (!res.ok) {
@@ -234,7 +263,23 @@ export default function BuildStoreWizard() {
                 </div>
               )}
 
-
+              {storeType === "fresh" && (
+                <label
+                  className="flex items-center gap-2 cursor-pointer px-1 py-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={needAssistant}
+                    onChange={(e) => setNeedAssistant(e.target.checked)}
+                    className="w-4 h-4 rounded cursor-pointer accent-[var(--accent)]"
+                  />
+                  <span className="text-sm" style={{ color: "var(--text)" }}>
+                    Need Assistant?
+                  </span>
+                  <InfoTooltip text="New to AI? A virtual assistant will guide you through every step — setting up your AI, building your store, connecting payments, mailing lists, and more. No experience needed." />
+                </label>
+              )}
 
               {error && (
                 <p className="text-sm text-center" style={{ color: "#E85D27" }}>
@@ -284,6 +329,12 @@ export default function BuildStoreWizard() {
                     {storeType === "existing" ? "🔗 Connected Project" : "🏗️ Fresh Build"}
                   </p>
                 </div>
+                {needAssistant && storeType === "fresh" && (
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Assistant</p>
+                    <p className="text-sm" style={{ color: "var(--accent)" }}>✨ Guided Assistant enabled</p>
+                  </div>
+                )}
                 {storeType === "existing" && (
                   <div>
                     <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Project URL</p>

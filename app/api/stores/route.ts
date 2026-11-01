@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const { store_name, store_description, store_type, external_url, llm_provider, llm_api_key } = body;
+  const { store_name, store_description, store_type, external_url, llm_provider, llm_api_key, assistant_enabled } = body;
 
   if (!store_name || !store_type) {
     return NextResponse.json({ error: "Store name and type are required" }, { status: 400 });
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
   // Create store
   try {
     const stores = await sql`
-      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, llm_provider, llm_api_key)
-      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${llm_provider || null}, ${llm_api_key || null})
+      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, llm_provider, llm_api_key, assistant_enabled)
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${llm_provider || null}, ${llm_api_key || null}, ${!!assistant_enabled})
       RETURNING id
     `;
 
