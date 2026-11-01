@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS stores (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   store_name TEXT NOT NULL,
   store_description TEXT,
-  store_type TEXT NOT NULL CHECK (store_type IN ('existing', 'llm')),
+  store_type TEXT NOT NULL CHECK (store_type IN ('existing', 'fresh')),
   external_url TEXT,
   llm_provider TEXT,
   llm_api_key TEXT,

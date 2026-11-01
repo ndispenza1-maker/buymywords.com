@@ -70,8 +70,9 @@ export default function BuildStoreWizard() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Something went wrong");
+        let msg = "Something went wrong";
+        try { const data = await res.json(); msg = data.error || msg; } catch {}
+        throw new Error(msg);
       }
       // Success — reload to reflect store_built = true
       window.location.reload();

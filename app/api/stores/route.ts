@@ -23,7 +23,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
   const { store_name, store_description, store_type, external_url, llm_provider, llm_api_key } = body;
 
   if (!store_name || !store_type) {
@@ -53,14 +58,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Create store
-  const stores = await sql`
-    INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, llm_provider, llm_api_key)
-    VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${llm_provider || null}, ${llm_api_key || null})
-    RETURNING id
-  `;
+  try {
+    const stores = await sql`
+      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, llm_provider, llm_api_key)
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${llm_provider || null}, ${llm_api_key || null})
+      RETURNING id
+    `;
 
-  // Mark store as built
-  await sql`UPDATE users SET store_built = true WHERE id = ${userId}`;
+    // Mark store as built
+    await sql`UPDATE users SET store_built = true WHERE id = ${userId}`;
 
-  return NextResponse.json({ store_id: stores[0].id }, { status: 201 });
+    return NextResponse.json({ store_id: stores[0].id }, { status: 201 });
+  } catch (e: unknown) {
+    console.error("Store creation failed:", e);
+    return NextResponse.json({ error: "Failed to create store" }, { status: 500 });
+  }
 }
