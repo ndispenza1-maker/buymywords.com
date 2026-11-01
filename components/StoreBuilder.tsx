@@ -153,15 +153,24 @@ export default function StoreBuilder({
       const html = extractHTML(data.content);
       if (html) {
         setPreview(html);
-        setPublished(false);
-      }
+        setPublished(true);
+        setSaveMsg("✅ Published!");
+        setTimeout(() => setSaveMsg(""), 3000);
 
-      // Save chat history
-      fetch("/api/stores/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store_id: storeId, chat_history: updatedMessages }),
-      });
+        // Auto-publish: save content + chat history together
+        fetch("/api/stores/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ store_id: storeId, store_content: html, chat_history: updatedMessages }),
+        });
+      } else {
+        // Save chat history only (conversational response, no HTML)
+        fetch("/api/stores/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ store_id: storeId, chat_history: updatedMessages }),
+        });
+      }
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : "Something went wrong";
       setMessages([...newMessages, { role: "assistant", content: `❌ Error: ${errMsg}` }]);
@@ -269,7 +278,36 @@ export default function StoreBuilder({
 
   // Builder view: preview + chat
   return (
-    <main className="flex" style={{ height: "calc(100vh - 56px)" }}>
+    <main className="flex flex-col" style={{ height: "calc(100vh - 56px)" }}>
+      {/* Publish bar — shows when there's unpublished content */}
+      {preview && !published && (
+        <div
+          className="px-4 py-3 flex items-center justify-between"
+          style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+        >
+          <p className="text-sm font-semibold">
+            🚀 Your store is ready to go live!
+          </p>
+          <button
+            onClick={handlePublish}
+            disabled={saving}
+            className="px-5 py-2 rounded-lg text-sm font-bold border-none cursor-pointer"
+            style={{ background: "var(--bg-card)", color: "var(--text)" }}
+          >
+            {saving ? "Publishing..." : "Publish Now"}
+          </button>
+        </div>
+      )}
+      {published && saveMsg && (
+        <div
+          className="px-4 py-2 text-center text-sm font-semibold"
+          style={{ background: "var(--bg-card)", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}
+        >
+          {saveMsg}
+        </div>
+      )}
+
+      <div className="flex flex-1" style={{ minHeight: 0 }}>
       {/* Preview panel */}
       <div className="flex-1 flex flex-col" style={{ background: "var(--bg)" }}>
         {/* Preview header */}
@@ -280,19 +318,6 @@ export default function StoreBuilder({
           <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
             Live Preview
           </p>
-          <div className="flex items-center gap-2">
-            {saveMsg && (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>{saveMsg}</span>
-            )}
-            <button
-              onClick={handlePublish}
-              disabled={!preview || saving || published}
-              className="text-xs px-3 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40 font-semibold"
-              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-            >
-              {saving ? "Publishing..." : published ? "✅ Published" : "🚀 Publish"}
-            </button>
-          </div>
         </div>
 
         {/* Preview content */}
@@ -426,6 +451,7 @@ export default function StoreBuilder({
         </div>
       </div>
 
+      </div>
     </main>
   );
 }

@@ -35,7 +35,9 @@ RULES:
 - Use a modern color palette unless the user specifies colors
 - Make text readable, spacing generous, buttons clear
 
-You are building their store. Make it look good.`;
+You are building their store. Make it look good.
+
+IMPORTANT: Add <base target="_blank"> inside the <head> tag so all links open in a new tab. The page will be rendered inside a sandboxed iframe.`;
 
 export async function POST(req: NextRequest) {
   const userId = await getAuthUserId();
