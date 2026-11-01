@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
       return await callAnthropic(store.llm_api_key, contextPrompt, messages);
     } else if (store.llm_provider === "google") {
       return await callGoogle(store.llm_api_key, contextPrompt, messages);
+    } else if (store.llm_provider === "grok") {
+      return await callGrok(store.llm_api_key, contextPrompt, messages);
     } else {
       return NextResponse.json({ error: "Unsupported LLM provider" }, { status: 400 });
     }
@@ -176,4 +178,33 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
   const data = await res.json();
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   return NextResponse.json({ content, provider: "google" });
+}
+
+async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
+  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "grok-3-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      max_tokens: 8000,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Grok error: ${err}`);
+  }
+
+  const data = await res.json();
+  return NextResponse.json({
+    content: data.choices[0]?.message?.content || "",
+    provider: "grok",
+  });
 }

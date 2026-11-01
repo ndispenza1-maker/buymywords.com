@@ -213,6 +213,7 @@ export default function StoreBuilder({
                 <option value="openai">OpenAI (GPT-4o mini)</option>
                 <option value="anthropic">Anthropic (Claude Sonnet)</option>
                 <option value="google">Google (Gemini Flash)</option>
+                <option value="grok">Grok (xAI)</option>
               </select>
             </div>
             <div>
@@ -223,7 +224,7 @@ export default function StoreBuilder({
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={provider === "openai" ? "sk-..." : provider === "anthropic" ? "sk-ant-..." : "AI..."}
+                placeholder={provider === "openai" ? "sk-..." : provider === "anthropic" ? "sk-ant-..." : provider === "grok" ? "xai-..." : "AI..."}
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none"
                 style={inputStyle}
               />
