@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
 
+// Increase serverless function timeout for LLM calls
+export const maxDuration = 60;
+
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 async function getAuthUserId(): Promise<string | null> {
@@ -147,7 +150,18 @@ async function callAnthropic(apiKey: string, systemPrompt: string, messages: Arr
   }
 
   const data = await res.json();
-  const content = data.content?.[0]?.text || "";
+  // Anthropic may return multiple content blocks — concatenate all text blocks
+  let content = "";
+  if (Array.isArray(data.content)) {
+    content = data.content
+      .filter((b: { type: string }) => b.type === "text")
+      .map((b: { text: string }) => b.text)
+      .join("\n");
+  }
+  if (!content && data.content?.[0]?.text) {
+    content = data.content[0].text;
+  }
+  console.log("Anthropic response length:", content.length, "stop_reason:", data.stop_reason);
   return NextResponse.json({ content, provider: "anthropic" });
 }
 
