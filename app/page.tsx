@@ -141,12 +141,14 @@ export default async function HomePage() {
                 No bots. No algorithm. No noise. Just Real people using their words to sell their products, views and ideas.
               </p>
             </div>
-            <div
-              className="sticky top-48 rounded-xl p-4"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            >
-              <MemberList currentUserId={user?.id || null} profileComplete={user?.profile_complete ?? false} />
-            </div>
+            {user && (
+              <div
+                className="sticky top-48 rounded-xl p-4"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+              >
+                <MemberList currentUserId={user.id} profileComplete={user.profile_complete ?? false} />
+              </div>
+            )}
           </aside>
         </div>
       </div>
