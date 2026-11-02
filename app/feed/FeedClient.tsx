@@ -99,19 +99,29 @@ function PostCard({
   onLike,
   onGate,
   onProfile,
+  onDelete,
+  onEdit,
   isGuest,
+  currentUserId,
 }: {
   post: Post;
   onLike: (id: string) => void;
   onGate: () => void;
   onProfile: (userId: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (id: string, content: string) => void;
   isGuest: boolean;
+  currentUserId: string | null;
 }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<
     { id: string; content: string; display_name: string; avatar_url: string | null; created_at: string }[]
   >([]);
   const [newComment, setNewComment] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(post.content);
+  const isOwner = currentUserId === post.user_id;
 
   const loadComments = async () => {
     const res = await fetch(`/api/posts/${post.id}/comments`);
@@ -141,7 +151,7 @@ function PostCard({
       className="rounded-xl p-4 mb-3"
       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
     >
-      {/* Author */}
+      {/* Author + menu */}
       <div className="flex items-center gap-3 mb-3">
         <button onClick={() => onProfile(post.user_id)} className="bg-transparent border-none cursor-pointer p-0">
           <div
@@ -156,7 +166,7 @@ function PostCard({
             {!post.avatar_url && post.display_name[0]?.toUpperCase()}
           </div>
         </button>
-        <div>
+        <div className="flex-1">
           <button onClick={() => onProfile(post.user_id)} className="bg-transparent border-none cursor-pointer p-0">
             <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
               {post.display_name}
@@ -166,10 +176,72 @@ function PostCard({
             {timeAgo(post.created_at)}
           </p>
         </div>
+        {isOwner && (
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-transparent border-none cursor-pointer text-sm"
+              style={{ color: "var(--text-muted)" }}
+            >
+              ⋯
+            </button>
+            {showMenu && (
+              <div
+                className="absolute right-0 top-9 rounded-xl py-1 shadow-lg z-10"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)", minWidth: "120px" }}
+              >
+                <button
+                  onClick={() => { setShowMenu(false); setEditing(true); setEditText(post.content); }}
+                  className="block w-full text-left px-4 py-2 text-xs bg-transparent border-none cursor-pointer"
+                  style={{ color: "var(--text)" }}
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); onDelete(post.id); }}
+                  className="block w-full text-left px-4 py-2 text-xs bg-transparent border-none cursor-pointer"
+                  style={{ color: "#E85D27" }}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+      {editing ? (
+        <div className="mb-3">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            rows={3}
+            className="w-full resize-none text-sm outline-none p-2 rounded-lg"
+            style={{ border: "1px solid var(--border)", background: "var(--bg)", fontFamily: "inherit" }}
+            onPaste={(e) => e.preventDefault()}
+          />
+          <div className="flex gap-2 mt-2 justify-end">
+            <button
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer"
+              style={{ background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { onEdit(post.id, editText); setEditing(false); }}
+              disabled={!editText.trim()}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border-none cursor-pointer disabled:opacity-40"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+      )}
 
       {post.image_url && (
         <img
@@ -304,6 +376,24 @@ export default function FeedClient({
     setPosting(false);
   };
 
+  const deletePost = async (postId: string) => {
+    const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
+    if (res.ok) {
+      setPosts((p) => p.filter((post) => post.id !== postId));
+    }
+  };
+
+  const editPost = async (postId: string, content: string) => {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (res.ok) {
+      setPosts((p) => p.map((post) => post.id === postId ? { ...post, content } : post));
+    }
+  };
+
   const toggleLike = async (postId: string) => {
     const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
     if (res.ok) {
@@ -396,7 +486,10 @@ export default function FeedClient({
             onLike={toggleLike}
             onGate={() => setShowGate(true)}
             onProfile={(id) => setProfileCardUserId(id)}
+            onDelete={deletePost}
+            onEdit={editPost}
             isGuest={isGuest}
+            currentUserId={currentUserId}
           />
         ))
       )}
