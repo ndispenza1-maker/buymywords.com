@@ -16,6 +16,7 @@ export default function MallAssistant({ storeId, storeName }: MallAssistantProps
   const [loading, setLoading] = useState(false);
   const [greeted, setGreeted] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [poppedOut, setPoppedOut] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -155,6 +156,32 @@ export default function MallAssistant({ storeId, storeName }: MallAssistantProps
     };
   }, [isDragging]);
 
+  const popOut = () => {
+    const w = 380;
+    const h = 520;
+    const left = window.screenX + window.innerWidth - w - 40;
+    const top = window.screenY + 80;
+    const popup = window.open(
+      `/assistant?store=${storeId}`,
+      "mall-assistant",
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`
+    );
+    if (popup) {
+      setPoppedOut(true);
+      setOpen(false);
+      // Listen for popup close to restore embedded widget
+      const check = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(check);
+          setPoppedOut(false);
+        }
+      }, 500);
+    }
+  };
+
+  // Hidden when popped out to standalone window
+  if (poppedOut) return null;
+
   // Floating bubble when closed
   if (!open) {
     return (
@@ -262,6 +289,14 @@ export default function MallAssistant({ storeId, storeName }: MallAssistantProps
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={popOut}
+            className="w-7 h-7 rounded-full flex items-center justify-center border-none cursor-pointer text-xs"
+            style={{ background: "rgba(255,255,255,0.2)", color: "var(--text-inverse)" }}
+            title="Pop out to own window"
+          >
+            ↗
+          </button>
           <button
             onClick={() => setMinimized(true)}
             className="w-7 h-7 rounded-full flex items-center justify-center border-none cursor-pointer text-sm"
