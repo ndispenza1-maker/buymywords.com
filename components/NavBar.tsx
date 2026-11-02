@@ -127,14 +127,7 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                       >
                         👤 My Profile
                       </button>
-                      <Link
-                        href="/settings"
-                        className="block px-4 py-2 text-sm no-underline"
-                        style={{ color: "var(--text)" }}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        ⚙️ Settings
-                      </Link>
+
                     </>
                   )}
 

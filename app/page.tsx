@@ -95,9 +95,7 @@ function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }
           ✉️ Messages
           <UnreadDot />
         </a>
-        <a href="/settings" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
-          ⚙️ Settings
-        </a>
+
       </nav>
     </>
   );
