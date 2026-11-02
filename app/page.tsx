@@ -3,6 +3,8 @@ import NavBar from "@/components/NavBar";
 import FeedClient from "./feed/FeedClient";
 import ProfileLink from "@/components/ProfileLink";
 import UnreadDot from "@/components/UnreadDot";
+import SubscriptionSuccess from "@/components/SubscriptionSuccess";
+import { Suspense } from "react";
 
 
 function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }) {
@@ -108,6 +110,7 @@ export default async function HomePage() {
   return (
     <>
       <NavBar user={user} />
+      <Suspense><SubscriptionSuccess /></Suspense>
       <div className="pt-16 min-h-screen" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 flex gap-6">
           {/* Left sidebar */}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useWizard } from "./WizardContext";
 
 type StoreType = "existing" | "fresh" | null;
-type Step = "choose" | "setup" | "review" | "pricing";
+type Step = "choose" | "setup" | "pricing";
 
 function InfoTooltip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
@@ -40,10 +40,10 @@ export default function BuildStoreWizard() {
   const [storeName, setStoreName] = useState("");
   const [storeDescription, setStoreDescription] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
+  const [needAssistant, setNeedAssistant] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [needAssistant, setNeedAssistant] = useState(false);
 
   if (!isOpen) return null;
 
@@ -76,44 +76,25 @@ export default function BuildStoreWizard() {
       setError("Paste your project URL");
       return;
     }
-
     setError("");
-    setStep("review");
+    setStep("pricing");
   };
 
-  const handleLaunch = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          store_name: storeName.trim(),
-          store_description: storeDescription.trim() || null,
-          store_type: storeType,
-          external_url: storeType === "existing" ? externalUrl.trim() : null,
-          llm_provider: null,
-          llm_api_key: null,
-          assistant_enabled: storeType === "fresh" ? needAssistant : false,
-        }),
-      });
-      if (!res.ok) {
-        let msg = "Something went wrong";
-        try { const data = await res.json(); msg = data.error || msg; } catch {}
-        throw new Error(msg);
-      }
-      // Store created — now go to pricing
-      setStep("pricing");
-      setLoading(false);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setLoading(false);
-    }
-  };
-
+  // Save store data to localStorage, then redirect to Stripe
   const handleCheckout = async (priceId: string) => {
     setLoading(true);
+    setError("");
+
+    // Stash store data — we'll create the store AFTER payment succeeds
+    const storeData = {
+      store_name: storeName.trim(),
+      store_description: storeDescription.trim() || null,
+      store_type: storeType,
+      external_url: storeType === "existing" ? externalUrl.trim() : null,
+      assistant_enabled: storeType === "fresh" ? needAssistant : false,
+    };
+    localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
+
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -123,9 +104,15 @@ export default function BuildStoreWizard() {
       if (res.ok) {
         const data = await res.json();
         window.location.href = data.url;
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || "Something went wrong");
+        setLoading(false);
       }
-    } catch {}
-    setLoading(false);
+    } catch {
+      setError("Something went wrong");
+      setLoading(false);
+    }
   };
 
   const modalStyle = {
@@ -163,14 +150,12 @@ export default function BuildStoreWizard() {
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>
               {step === "choose" && "Build Your Project"}
               {step === "setup" && (storeType === "existing" ? "Connect Your Project" : "Start Fresh")}
-              {step === "review" && "Review & Launch"}
               {step === "pricing" && "Choose Your Plan"}
             </h2>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
               {step === "choose" && "How do you want to get started?"}
               {step === "setup" && "Tell us about your store"}
-              {step === "review" && "Everything look good?"}
-              {step === "pricing" && "Your store is live! Pick a lease."}
+              {step === "pricing" && "You keep 100% of your sales. This is just rent."}
             </p>
           </div>
           <button
@@ -190,10 +175,7 @@ export default function BuildStoreWizard() {
               <button
                 onClick={() => handleChoose("existing")}
                 className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all"
-                style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                }}
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
@@ -213,10 +195,7 @@ export default function BuildStoreWizard() {
               <button
                 onClick={() => handleChoose("fresh")}
                 className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all"
-                style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                }}
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
@@ -325,42 +304,18 @@ export default function BuildStoreWizard() {
             </div>
           )}
 
-          {/* Step 3: Review */}
-          {step === "review" && (
-            <div className="space-y-4">
+          {/* Step 3: Pricing — pay first, store created after */}
+          {step === "pricing" && (
+            <div className="space-y-3">
+              {/* Review summary */}
               <div
-                className="p-4 rounded-xl space-y-3"
+                className="p-3 rounded-xl space-y-1 mb-2"
                 style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
               >
-                <div>
-                  <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Project Name</p>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{storeName}</p>
-                </div>
-                {storeDescription && (
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Description</p>
-                    <p className="text-sm" style={{ color: "var(--text)" }}>{storeDescription}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Type</p>
-                  <p className="text-sm" style={{ color: "var(--text)" }}>
-                    {storeType === "existing" ? "🔗 Connected Project" : "🏗️ Fresh Build"}
-                  </p>
-                </div>
-                {needAssistant && storeType === "fresh" && (
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Assistant</p>
-                    <p className="text-sm" style={{ color: "var(--accent)" }}>✨ Guided Assistant enabled</p>
-                  </div>
-                )}
-                {storeType === "existing" && (
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Project URL</p>
-                    <p className="text-sm" style={{ color: "var(--accent)" }}>{externalUrl}</p>
-                  </div>
-                )}
-
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {storeType === "existing" ? "🔗" : "🏗️"} <span className="font-semibold" style={{ color: "var(--text)" }}>{storeName}</span>
+                  {needAssistant && storeType === "fresh" && <span style={{ color: "var(--accent)" }}> · ✨ Assistant</span>}
+                </p>
               </div>
 
               {error && (
@@ -368,34 +323,6 @@ export default function BuildStoreWizard() {
                   {error}
                 </p>
               )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setStep("setup"); setError(""); }}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer"
-                  style={{ background: "var(--bg)", color: "var(--text)", border: "1px solid var(--border)" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleLaunch}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
-                  style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-                >
-                  {loading ? "Launching..." : "🚀 Launch My Project"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Pricing */}
-          {step === "pricing" && (
-            <div className="space-y-3">
-              <p className="text-xs text-center mb-2" style={{ color: "var(--text-muted)" }}>
-                You keep 100% of your sales. This is just rent.
-              </p>
 
               {storeType === "fresh" && needAssistant ? (
                 /* Fresh + Assistant: $39.99/mo only */
@@ -439,8 +366,6 @@ export default function BuildStoreWizard() {
                     disabled={loading}
                     className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
                     style={{ background: "var(--bg)", border: "1px solid var(--accent)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -468,6 +393,15 @@ export default function BuildStoreWizard() {
                   </button>
                 </>
               )}
+
+              <button
+                onClick={() => { setStep("setup"); setError(""); }}
+                disabled={loading}
+                className="w-full py-2 text-xs bg-transparent border-none cursor-pointer"
+                style={{ color: "var(--text-muted)" }}
+              >
+                ← Back to setup
+              </button>
             </div>
           )}
         </div>
