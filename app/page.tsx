@@ -145,7 +145,7 @@ export default async function HomePage() {
               className="sticky top-48 rounded-xl p-4"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
             >
-              <MemberList />
+              <MemberList currentUserId={user?.id || null} profileComplete={user?.profile_complete ?? false} />
             </div>
           </aside>
         </div>

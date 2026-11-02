@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ProfileCard from "./ProfileCard";
 
 interface Member {
   id: string;
@@ -9,8 +10,9 @@ interface Member {
   avatar_url: string | null;
 }
 
-export default function MemberList() {
+export default function MemberList({ currentUserId, profileComplete }: { currentUserId?: string | null; profileComplete?: boolean }) {
   const [members, setMembers] = useState<Member[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/members")
@@ -29,9 +31,20 @@ export default function MemberList() {
           {members.length}
         </span>
       </div>
+      {selectedUserId && (
+        <ProfileCard
+          userId={selectedUserId}
+          currentUserId={currentUserId || null}
+          profileComplete={profileComplete ?? false}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
       <div className="space-y-2.5">
         {members.map((m) => (
-          <div key={m.id} className="flex items-center gap-2.5">
+          <button
+            key={m.id}
+            onClick={() => setSelectedUserId(m.id)}
+            className="flex items-center gap-2.5 w-full bg-transparent border-none cursor-pointer p-0 text-left"
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{
@@ -51,7 +64,7 @@ export default function MemberList() {
                 {m.account_type === "store_owner" ? "Store Owner" : "Shopper"}
               </p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </>
