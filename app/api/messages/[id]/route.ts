@@ -23,7 +23,7 @@ export async function GET(
   }
 
   const messages = await sql`
-    SELECT m.*, u.handle, u.display_name, u.avatar_url
+    SELECT m.*, u.display_name, u.avatar_url
     FROM messages m
     JOIN users u ON m.sender_id = u.id
     WHERE m.conversation_id = ${conversationId}

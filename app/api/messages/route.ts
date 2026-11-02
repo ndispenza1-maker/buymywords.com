@@ -22,7 +22,7 @@ export async function GET() {
   const enriched = await Promise.all(
     conversations.map(async (conv) => {
       const others = await sql`
-        SELECT u.id, u.handle, u.display_name, u.avatar_url
+        SELECT u.id, u.display_name, u.avatar_url
         FROM conversation_members cm
         JOIN users u ON u.id = cm.user_id
         WHERE cm.conversation_id = ${conv.id} AND cm.user_id != ${user.id}
