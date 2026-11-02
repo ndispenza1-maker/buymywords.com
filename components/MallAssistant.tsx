@@ -192,6 +192,9 @@ export default function MallAssistant({ storeId, storeName }: MallAssistantProps
         if (popup.closed) {
           clearInterval(check);
           setPoppedOut(false);
+          // Reset greeted so it reloads history from DB on next open
+          setGreeted(false);
+          setMessages([]);
         }
       }, 500);
     }

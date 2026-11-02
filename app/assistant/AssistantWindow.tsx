@@ -147,6 +147,14 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
             </p>
           </div>
         </div>
+        <button
+          onClick={() => window.close()}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full border-none cursor-pointer text-xs font-semibold"
+          style={{ background: "rgba(255,255,255,0.2)", color: "var(--text-inverse)" }}
+          title="Close and return to store"
+        >
+          ← Back to Store
+        </button>
       </div>
 
       {/* Messages */}
