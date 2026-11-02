@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 // The Mall's own Claude API key — server-side only, never exposed
 const MALL_CLAUDE_KEY = process.env.MALL_CLAUDE_API_KEY;
-const ASSISTANT_MODEL = "claude-haiku-4-20250414";
+const ASSISTANT_MODEL = "claude-haiku-5-5";
 
 async function getAuthUserId(): Promise<string | null> {
   try {
