@@ -6,33 +6,6 @@ import { useWizard } from "./WizardContext";
 type StoreType = "existing" | "fresh" | null;
 type Step = "choose" | "setup" | "pricing";
 
-function InfoTooltip({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <span
-      className="relative inline-flex items-center justify-center ml-1.5 cursor-help"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShow(!show); }}
-    >
-      <span
-        className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
-        style={{ border: "1px solid var(--text-muted)", color: "var(--text-muted)" }}
-      >
-        i
-      </span>
-      {show && (
-        <span
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs leading-relaxed whitespace-normal w-56 text-center z-50"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text)", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
-        >
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
-
 export default function BuildStoreWizard() {
   const { isOpen, closeWizard } = useWizard();
   const [step, setStep] = useState<Step>("choose");
@@ -40,7 +13,6 @@ export default function BuildStoreWizard() {
   const [storeName, setStoreName] = useState("");
   const [storeDescription, setStoreDescription] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
-  const [needAssistant, setNeedAssistant] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +25,6 @@ export default function BuildStoreWizard() {
     setStoreName("");
     setStoreDescription("");
     setExternalUrl("");
-    setNeedAssistant(false);
     setError("");
   };
 
@@ -85,13 +56,13 @@ export default function BuildStoreWizard() {
     setLoading(true);
     setError("");
 
-    // Stash store data — we'll create the store AFTER payment succeeds
+    // Stash store data — store created AFTER payment succeeds
     const storeData = {
       store_name: storeName.trim(),
       store_description: storeDescription.trim() || null,
       store_type: storeType,
       external_url: storeType === "existing" ? externalUrl.trim() : null,
-      assistant_enabled: storeType === "fresh" ? needAssistant : false,
+      assistant_enabled: storeType === "fresh", // Fresh always gets assistant
     };
     localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
 
@@ -115,11 +86,6 @@ export default function BuildStoreWizard() {
     }
   };
 
-  const modalStyle = {
-    background: "rgba(45,36,36,0.6)",
-    backdropFilter: "blur(4px)",
-  };
-
   const cardStyle = {
     background: "var(--bg-card)",
     border: "1px solid var(--border)",
@@ -133,7 +99,7 @@ export default function BuildStoreWizard() {
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center px-4"
-      style={modalStyle}
+      style={{ background: "rgba(45,36,36,0.6)", backdropFilter: "blur(4px)" }}
       onClick={handleClose}
     >
       <div
@@ -169,7 +135,7 @@ export default function BuildStoreWizard() {
 
         {/* Body */}
         <div className="px-6 py-5">
-          {/* Step 1: Choose */}
+          {/* Step 1: Choose type */}
           {step === "choose" && (
             <div className="space-y-3">
               <button
@@ -187,6 +153,9 @@ export default function BuildStoreWizard() {
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       I already have a website or project
+                    </p>
+                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
+                      From $19.99/mo
                     </p>
                   </div>
                 </div>
@@ -206,7 +175,10 @@ export default function BuildStoreWizard() {
                       Start Fresh
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                      Get a blank store page — build it your way
+                      Blank store page + AI assistant to help you build
+                    </p>
+                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
+                      $39.99/mo · Assistant included
                     </p>
                   </div>
                 </div>
@@ -214,7 +186,7 @@ export default function BuildStoreWizard() {
             </div>
           )}
 
-          {/* Step 2: Setup */}
+          {/* Step 2: Setup details */}
           {step === "setup" && (
             <div className="space-y-4">
               <div>
@@ -261,24 +233,6 @@ export default function BuildStoreWizard() {
                 </div>
               )}
 
-              {storeType === "fresh" && (
-                <label
-                  className="flex items-center gap-2 cursor-pointer px-1 py-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={needAssistant}
-                    onChange={(e) => setNeedAssistant(e.target.checked)}
-                    className="w-4 h-4 rounded cursor-pointer accent-[var(--accent)]"
-                  />
-                  <span className="text-sm" style={{ color: "var(--text)" }}>
-                    Need Assistant?
-                  </span>
-                  <InfoTooltip text="New to AI? A virtual assistant will guide you through every step — setting up your AI, building your store, connecting payments, mailing lists, and more. No experience needed." />
-                </label>
-              )}
-
               {error && (
                 <p className="text-sm text-center" style={{ color: "#E85D27" }}>
                   {error}
@@ -304,17 +258,18 @@ export default function BuildStoreWizard() {
             </div>
           )}
 
-          {/* Step 3: Pricing — pay first, store created after */}
+          {/* Step 3: Pricing */}
           {step === "pricing" && (
             <div className="space-y-3">
-              {/* Review summary */}
+              {/* Summary */}
               <div
-                className="p-3 rounded-xl space-y-1 mb-2"
+                className="p-3 rounded-xl"
                 style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
               >
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {storeType === "existing" ? "🔗" : "🏗️"} <span className="font-semibold" style={{ color: "var(--text)" }}>{storeName}</span>
-                  {needAssistant && storeType === "fresh" && <span style={{ color: "var(--accent)" }}> · ✨ Assistant</span>}
+                  {storeType === "existing" ? "🔗" : "🏗️"}{" "}
+                  <span className="font-semibold" style={{ color: "var(--text)" }}>{storeName}</span>
+                  {storeType === "fresh" && <span style={{ color: "var(--accent)" }}> · ✨ Assistant included</span>}
                 </p>
               </div>
 
@@ -324,26 +279,24 @@ export default function BuildStoreWizard() {
                 </p>
               )}
 
-              {storeType === "fresh" && needAssistant ? (
-                /* Fresh + Assistant: $39.99/mo only */
+              {storeType === "fresh" ? (
+                /* Fresh: one price, assistant included */
                 <button
                   onClick={() => handleCheckout("price_1UXScd2ctK45EjG7QbTNoaey")}
                   disabled={loading}
                   className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                  style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                  style={{ background: "var(--bg)", border: "1px solid var(--accent)" }}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Store + Assistant</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>AI assistant included</p>
+                      <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Start Fresh + Assistant</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>AI assistant helps you build your store</p>
                     </div>
                     <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$39.99<span className="text-xs font-normal">/mo</span></p>
                   </div>
                 </button>
               ) : (
-                /* Link Existing / Fresh without assistant: 3 tiers */
+                /* Connect Existing: 3 tiers */
                 <>
                   <button
                     onClick={() => handleCheckout("price_1UX2Mh2ctK45EjG7Cd3NbKEA")}
@@ -365,11 +318,16 @@ export default function BuildStoreWizard() {
                     onClick={() => handleCheckout("price_1UX2OC2ctK45EjG7hBCsExY2")}
                     disabled={loading}
                     className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                    style={{ background: "var(--bg)", border: "1px solid var(--accent)" }}
+                    style={{ background: "var(--bg)", border: "2px solid var(--accent)" }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>6 Months <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>Save 17%</span></p>
+                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                          6 Months{" "}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                            Save 17%
+                          </span>
+                        </p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Best for committed builders</p>
                       </div>
                       <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$99.99<span className="text-xs font-normal">/6mo</span></p>
@@ -385,7 +343,12 @@ export default function BuildStoreWizard() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Yearly <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>Save 17%</span></p>
+                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                          Yearly{" "}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                            Save 17%
+                          </span>
+                        </p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Lock in the best rate</p>
                       </div>
                       <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$199.99<span className="text-xs font-normal">/yr</span></p>
@@ -400,7 +363,7 @@ export default function BuildStoreWizard() {
                 className="w-full py-2 text-xs bg-transparent border-none cursor-pointer"
                 style={{ color: "var(--text-muted)" }}
               >
-                ← Back to setup
+                ← Back
               </button>
             </div>
           )}
