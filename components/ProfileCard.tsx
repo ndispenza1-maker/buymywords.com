@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useWizard } from "./WizardContext";
 
 interface ProfileData {
@@ -39,8 +40,27 @@ export default function ProfileCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [messageSending, setMessageSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { openWizard } = useWizard();
+  const router = useRouter();
+
+  const handleMessage = async () => {
+    if (!profile || !currentUserId || messageSending) return;
+    setMessageSending(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_user_id: profile.id, content: "👋" }),
+      });
+      if (res.ok) {
+        onClose();
+        router.push("/messages");
+      }
+    } catch {}
+    setMessageSending(false);
+  };
 
   // Load profile on mount
   useState(() => {
@@ -359,14 +379,16 @@ export default function ProfileCard({
                     {profile.is_following ? "Following" : "Follow"}
                   </button>
                   <button
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer"
+                    onClick={handleMessage}
+                    disabled={messageSending}
+                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
                     style={{
                       background: "rgba(255,255,255,0.08)",
                       color: "var(--sunset-mauve)",
                       border: "1px solid rgba(255,255,255,0.1)",
                     }}
                   >
-                    Message
+                    {messageSending ? "..." : "Message"}
                   </button>
                 </div>
               ) : null}
