@@ -47,14 +47,32 @@ export default function MallAssistant({ storeId, storeName }: MallAssistantProps
     }
   }, [open, minimized]);
 
-  // Auto-greet on first open
+  // Load history or greet on first open
   useEffect(() => {
     if (open && !greeted) {
       setGreeted(true);
-      fetchGreeting();
+      loadOrGreet();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const loadOrGreet = async () => {
+    setLoading(true);
+    try {
+      // Try to load existing conversation
+      const histRes = await fetch(`/api/assistant/history?store_id=${storeId}`);
+      if (histRes.ok) {
+        const histData = await histRes.json();
+        if (histData.messages && histData.messages.length > 0) {
+          setMessages(histData.messages);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch { /* fall through to greeting */ }
+    // No history — send greeting
+    fetchGreeting();
+  };
 
   const fetchGreeting = async () => {
     setLoading(true);

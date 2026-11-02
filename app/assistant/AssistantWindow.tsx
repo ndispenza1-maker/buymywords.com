@@ -25,14 +25,30 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
     inputRef.current?.focus();
   }, []);
 
-  // Auto-greet on mount
+  // Load history or greet on mount
   useEffect(() => {
     if (!greeted) {
       setGreeted(true);
-      fetchGreeting();
+      loadOrGreet();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadOrGreet = async () => {
+    setLoading(true);
+    try {
+      const histRes = await fetch(`/api/assistant/history?store_id=${storeId}`);
+      if (histRes.ok) {
+        const histData = await histRes.json();
+        if (histData.messages && histData.messages.length > 0) {
+          setMessages(histData.messages);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch { /* fall through to greeting */ }
+    fetchGreeting();
+  };
 
   const fetchGreeting = async () => {
     setLoading(true);

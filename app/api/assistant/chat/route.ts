@@ -159,6 +159,13 @@ export async function POST(req: NextRequest) {
       VALUES (${store_id}, ${userId}, ${inputTokens}, ${outputTokens}, ${ASSISTANT_MODEL})
     `;
 
+    // Persist the full conversation so it survives page reloads and pop-outs
+    const updatedMessages = [...messages, { role: "assistant", content }];
+    await sql`
+      UPDATE stores SET assistant_chat_history = ${JSON.stringify(updatedMessages)}
+      WHERE id = ${store_id}
+    `;
+
     return NextResponse.json({
       content,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
