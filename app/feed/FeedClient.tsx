@@ -98,19 +98,23 @@ function PostCard({
   post,
   onLike,
   onGate,
+  onUpgrade,
   onProfile,
   onDelete,
   onEdit,
   isGuest,
+  hasSubscription,
   currentUserId,
 }: {
   post: Post;
   onLike: (id: string) => void;
   onGate: () => void;
+  onUpgrade: () => void;
   onProfile: (userId: string) => void;
   onDelete: (id: string) => void;
   onEdit: (id: string, content: string) => void;
   isGuest: boolean;
+  hasSubscription: boolean;
   currentUserId: string | null;
 }) {
   const [showComments, setShowComments] = useState(false);
@@ -133,6 +137,7 @@ function PostCard({
 
   const submitComment = async () => {
     if (isGuest) { onGate(); return; }
+    if (!hasSubscription) { onUpgrade(); return; }
     if (!newComment.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
       method: "POST",
@@ -143,6 +148,9 @@ function PostCard({
       const data = await res.json();
       setComments((c) => [...c, data.comment]);
       setNewComment("");
+    } else {
+      const data = await res.json().catch(() => null);
+      if (data?.gated) onUpgrade();
     }
   };
 
@@ -304,13 +312,13 @@ function PostCard({
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitComment()}
-              placeholder={isGuest ? "Create a profile to comment..." : "Write a comment..."}
+              placeholder={isGuest ? "Create a profile to comment..." : !hasSubscription ? "Upgrade to Mall+ to comment..." : "Write a comment..."}
               className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
               style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
-              onFocus={() => { if (isGuest) onGate(); }}
+              onFocus={() => { if (isGuest) onGate(); else if (!hasSubscription) onUpgrade(); }}
               onPaste={(e) => e.preventDefault()}
             />
-            {!isGuest && (
+            {!isGuest && hasSubscription && (
               <button
                 onClick={submitComment}
                 className="px-3 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer"
@@ -327,12 +335,77 @@ function PostCard({
 }
 
 /* ── Feed ── */
+/* ── Upgrade gate modal ── */
+function UpgradeGate({ onClose }: { onClose: () => void }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price_id: "price_1UXSk22ctK45EjG7uQa1FKw0" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.url;
+      }
+    } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{ background: "rgba(45,36,36,0.6)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-sm w-full text-center"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
+          🔓 Unlock The Shared Space
+        </h2>
+        <p className="text-sm mb-2" style={{ color: "var(--text-muted)" }}>
+          Chat, comment, message, and follow the builders.
+        </p>
+        <p className="text-lg font-bold mb-4" style={{ color: "var(--accent)" }}>
+          $9.99/mo
+        </p>
+        <button
+          onClick={handleUpgrade}
+          disabled={loading}
+          className="w-full py-3 rounded-full font-semibold text-sm border-none cursor-pointer disabled:opacity-50"
+          style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+        >
+          {loading ? "Redirecting..." : "Upgrade to Mall+"}
+        </button>
+        <button
+          onClick={onClose}
+          className="mt-3 text-xs bg-transparent border-none cursor-pointer"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Maybe later
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Feed ── */
 export default function FeedClient({
   currentUserId,
   profileComplete,
+  accountType,
+  subscriptionStatus,
 }: {
   currentUserId: string | null;
   profileComplete: boolean;
+  accountType: string | null;
+  subscriptionStatus: string | null;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
@@ -346,6 +419,11 @@ export default function FeedClient({
   const canEngage = !!currentUserId && profileComplete;
   const hasAccount = !!currentUserId;
   const isGuest = !canEngage;
+
+  // Subscription check — store owners always have access, shoppers need sub
+  const isStoreOwner = accountType === "store_owner";
+  const hasSubscription = isStoreOwner || subscriptionStatus === "active";
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const loadPosts = useCallback(async () => {
     const res = await fetch("/api/posts");
@@ -411,6 +489,7 @@ export default function FeedClient({
   return (
     <div>
       {showGate && <AuthGate onClose={() => setShowGate(false)} hasAccount={hasAccount} />}
+      {showUpgrade && <UpgradeGate onClose={() => setShowUpgrade(false)} />}
 
       {profileCardUserId && (
         <ProfileCard
@@ -418,6 +497,7 @@ export default function FeedClient({
           currentUserId={currentUserId}
           profileComplete={profileComplete}
           onClose={() => setProfileCardUserId(null)}
+          hasSubscription={hasSubscription}
         />
       )}
 
@@ -429,7 +509,7 @@ export default function FeedClient({
         <textarea
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}
-          placeholder={isGuest ? "Create a profile to post..." : "What's on your mind?"}
+          placeholder={isGuest ? "Create a profile to post..." : !hasSubscription ? "Upgrade to Mall+ to post..." : "What's on your mind?"}
           rows={3}
           className="w-full resize-none text-sm outline-none p-2 rounded-lg"
           style={{
@@ -437,7 +517,7 @@ export default function FeedClient({
             background: "var(--bg)",
             fontFamily: "inherit",
           }}
-          onFocus={() => { if (isGuest) setShowGate(true); }}
+          onFocus={() => { if (isGuest) setShowGate(true); else if (!hasSubscription) setShowUpgrade(true); }}
           onPaste={(e) => {
             e.preventDefault();
             setPasteBlocked(true);
@@ -485,10 +565,12 @@ export default function FeedClient({
             post={post}
             onLike={toggleLike}
             onGate={() => setShowGate(true)}
+            onUpgrade={() => setShowUpgrade(true)}
             onProfile={(id) => setProfileCardUserId(id)}
             onDelete={deletePost}
             onEdit={editPost}
             isGuest={isGuest}
+            hasSubscription={hasSubscription}
             currentUserId={currentUserId}
           />
         ))

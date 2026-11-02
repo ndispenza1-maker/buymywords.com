@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
+import { checkAccess } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Subscription gate — shoppers need active sub to follow
+  const access = await checkAccess(user.id);
+  if (!access.canFollow) {
+    return NextResponse.json({ error: access.reason, gated: true }, { status: 403 });
+  }
 
   const { user_id } = await request.json();
 

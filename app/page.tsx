@@ -125,6 +125,8 @@ export default async function HomePage() {
             <FeedClient
               currentUserId={user?.id || null}
               profileComplete={user?.profile_complete ?? false}
+              accountType={user?.account_type || null}
+              subscriptionStatus={user?.subscription_status || null}
             />
           </main>
 

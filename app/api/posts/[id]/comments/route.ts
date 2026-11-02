@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { checkUserAgent, isRateLimited, checkAccountAge } from "@/lib/security";
+import { checkAccess } from "@/lib/subscription";
 
 // GET — read comments (open to everyone)
 export async function GET(
@@ -35,6 +36,12 @@ export async function POST(
 
   if (isRateLimited(`comment:${user.id}`, 20, 15 * 60 * 1000)) {
     return NextResponse.json({ error: "Slow down — you're commenting too fast" }, { status: 429 });
+  }
+
+  // Subscription gate — shoppers need active sub to comment
+  const access = await checkAccess(user.id);
+  if (!access.canComment) {
+    return NextResponse.json({ error: access.reason, gated: true }, { status: 403 });
   }
 
   const minutesLeft = await checkAccountAge(user.id);

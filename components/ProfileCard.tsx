@@ -30,11 +30,13 @@ export default function ProfileCard({
   currentUserId,
   profileComplete,
   onClose,
+  hasSubscription = true,
 }: {
   userId: string;
   currentUserId: string | null;
   profileComplete: boolean;
   onClose: () => void;
+  hasSubscription?: boolean;
 }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,7 @@ export default function ProfileCard({
   const [messageText, setMessageText] = useState("");
   const [messageSending, setMessageSending] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
+  const [showUpgradeHint, setShowUpgradeHint] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const msgInputRef = useRef<HTMLInputElement>(null);
   const { openWizard } = useWizard();
@@ -371,31 +374,50 @@ export default function ProfileCard({
                   </a>
                 )
               ) : currentUserId && profileComplete ? (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleFollow}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer transition-all"
-                    style={{
-                      background: profile.is_following
-                        ? "rgba(255,255,255,0.08)"
-                        : "var(--sunset-warm)",
-                      color: profile.is_following ? "var(--sunset-mauve)" : "var(--text-inverse)",
-                      border: profile.is_following ? "1px solid rgba(255,255,255,0.1)" : "none",
-                    }}
-                  >
-                    {profile.is_following ? "Following" : "Follow"}
-                  </button>
-                  <button
-                    onClick={() => { setShowComposer(true); setTimeout(() => msgInputRef.current?.focus(), 100); }}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer"
-                    style={{
-                      background: "rgba(255,255,255,0.08)",
-                      color: "var(--sunset-mauve)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    Message
-                  </button>
+                <div>
+                  {hasSubscription ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleFollow}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer transition-all"
+                        style={{
+                          background: profile.is_following
+                            ? "rgba(255,255,255,0.08)"
+                            : "var(--sunset-warm)",
+                          color: profile.is_following ? "var(--sunset-mauve)" : "var(--text-inverse)",
+                          border: profile.is_following ? "1px solid rgba(255,255,255,0.1)" : "none",
+                        }}
+                      >
+                        {profile.is_following ? "Following" : "Follow"}
+                      </button>
+                      <button
+                        onClick={() => { setShowComposer(true); setTimeout(() => msgInputRef.current?.focus(), 100); }}
+                        className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer"
+                        style={{
+                          background: "rgba(255,255,255,0.08)",
+                          color: "var(--sunset-mauve)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                        }}
+                      >
+                        Message
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button
+                        onClick={() => setShowUpgradeHint(true)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer"
+                        style={{ background: "var(--sunset-warm)", color: "var(--text-inverse)" }}
+                      >
+                        🔓 Upgrade to Follow & Message
+                      </button>
+                      {showUpgradeHint && (
+                        <p className="text-xs text-center mt-2" style={{ color: "var(--sunset-mauve)" }}>
+                          Mall+ ($9.99/mo) unlocks follow, comments, and messages.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
