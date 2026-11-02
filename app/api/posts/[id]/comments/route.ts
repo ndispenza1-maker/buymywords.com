@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
+import { checkUserAgent, isRateLimited, checkAccountAge } from "@/lib/security";
 
 // GET — read comments (open to everyone)
 export async function GET(
@@ -26,8 +27,23 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const uaBlock = checkUserAgent(request);
+  if (uaBlock) return NextResponse.json({ error: uaBlock }, { status: 403 });
+
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (isRateLimited(`comment:${user.id}`, 20, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Slow down — you're commenting too fast" }, { status: 429 });
+  }
+
+  const minutesLeft = await checkAccountAge(user.id);
+  if (minutesLeft !== null) {
+    return NextResponse.json(
+      { error: `Your account is brand new. You can comment in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.` },
+      { status: 403 }
+    );
+  }
 
   const { id: postId } = await params;
   const { content } = await request.json();

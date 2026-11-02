@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
+import { checkUserAgent, isRateLimited, checkAccountAge, isHoneypotTriggered } from "@/lib/security";
 
 // GET — chronological feed (open to everyone)
 export async function GET(request: NextRequest) {
@@ -49,10 +50,35 @@ export async function GET(request: NextRequest) {
 
 // POST — create a post (auth required)
 export async function POST(request: NextRequest) {
+  // Security: block bots
+  const uaBlock = checkUserAgent(request);
+  if (uaBlock) return NextResponse.json({ error: uaBlock }, { status: 403 });
+
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { content, image_url } = await request.json();
+  // Security: rate limit — max 10 posts per 15 minutes per user
+  if (isRateLimited(`post:${user.id}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Slow down — you're posting too fast" }, { status: 429 });
+  }
+
+  // Security: account age gate — must be 15 min old
+  const minutesLeft = await checkAccountAge(user.id);
+  if (minutesLeft !== null) {
+    return NextResponse.json(
+      { error: `Your account is brand new. You can post in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.` },
+      { status: 403 }
+    );
+  }
+
+  const body = await request.json();
+  const { content, image_url } = body;
+
+  // Security: honeypot check
+  if (isHoneypotTriggered(body)) {
+    // Silently accept but don't actually post (don't tip off the bot)
+    return NextResponse.json({ post: { id: 'ok' } });
+  }
 
   if (!content || content.trim().length === 0) {
     return NextResponse.json({ error: "Post cannot be empty" }, { status: 400 });

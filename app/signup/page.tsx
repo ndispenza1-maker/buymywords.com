@@ -7,6 +7,7 @@ import Link from "next/link";
 export default function SignupPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "", display_name: "" });
+  const [honeypot, setHoneypot] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +19,7 @@ export default function SignupPage() {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, website: honeypot }),
     });
 
     const data = await res.json();
@@ -107,6 +108,17 @@ export default function SignupPage() {
               style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
             />
           </div>
+
+          {/* Honeypot — invisible to humans */}
+          <input
+            type="text"
+            name="website"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0 }}
+          />
 
           {error && (
             <p className="text-sm text-center" style={{ color: "#E85D27" }}>

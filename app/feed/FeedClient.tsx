@@ -236,6 +236,7 @@ function PostCard({
               className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
               style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
               onFocus={() => { if (isGuest) onGate(); }}
+              onPaste={(e) => e.preventDefault()}
             />
             {!isGuest && (
               <button
@@ -266,6 +267,8 @@ export default function FeedClient({
   const [posting, setPosting] = useState(false);
   const [showGate, setShowGate] = useState(false);
   const [profileCardUserId, setProfileCardUserId] = useState<string | null>(null);
+  const [pasteBlocked, setPasteBlocked] = useState(false);
+  const [honeypot, setHoneypot] = useState(""); // hidden field — bots fill it, humans don't
 
   // Can't engage if not logged in OR logged in but profile not built
   const canEngage = !!currentUserId && profileComplete;
@@ -291,7 +294,7 @@ export default function FeedClient({
     const res = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newPost }),
+      body: JSON.stringify({ content: newPost, website: honeypot }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -345,6 +348,26 @@ export default function FeedClient({
             fontFamily: "inherit",
           }}
           onFocus={() => { if (isGuest) setShowGate(true); }}
+          onPaste={(e) => {
+            e.preventDefault();
+            setPasteBlocked(true);
+            setTimeout(() => setPasteBlocked(false), 3000);
+          }}
+        />
+        {pasteBlocked && (
+          <p className="text-xs mt-1 px-1" style={{ color: "var(--sunset-warm)" }}>
+            ✍️ The Mall is a handwritten space. Type your words.
+          </p>
+        )}
+        {/* Honeypot — invisible to humans, bots auto-fill it */}
+        <input
+          type="text"
+          name="website"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0 }}
         />
         <div className="flex justify-end mt-2">
           <button
