@@ -351,7 +351,7 @@ export default function BuildStoreWizard() {
                         </p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Lock in the best rate</p>
                       </div>
-                      <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$199.99<span className="text-xs font-normal">/yr</span></p>
+                      <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$149.99<span className="text-xs font-normal">/yr</span></p>
                     </div>
                   </button>
                 </>

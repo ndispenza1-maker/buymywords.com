@@ -95,7 +95,7 @@ export default function SubscribeClient() {
                     6 Months
                   </p>
                   <p className="text-[10px] mt-0.5 font-semibold" style={{ color: "var(--accent)" }}>
-                    Save 17% — $16.67/mo
+                    Save 17% — $16.66/mo
                   </p>
                 </div>
                 <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
@@ -118,11 +118,11 @@ export default function SubscribeClient() {
                     Yearly
                   </p>
                   <p className="text-[10px] mt-0.5 font-semibold" style={{ color: "var(--accent)" }}>
-                    Best value — $16.67/mo
+                    Best value — $12.50/mo
                   </p>
                 </div>
                 <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
-                  $199.99<span className="text-xs font-normal">/yr</span>
+                  $149.99<span className="text-xs font-normal">/yr</span>
                 </p>
               </div>
             </button>
