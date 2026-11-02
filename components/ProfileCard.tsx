@@ -40,23 +40,30 @@ export default function ProfileCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
+  const [messageText, setMessageText] = useState("");
   const [messageSending, setMessageSending] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const msgInputRef = useRef<HTMLInputElement>(null);
   const { openWizard } = useWizard();
-  const router = useRouter();
 
-  const handleMessage = async () => {
-    if (!profile || !currentUserId || messageSending) return;
+  const handleSendMessage = async () => {
+    if (!profile || !currentUserId || !messageText.trim() || messageSending) return;
     setMessageSending(true);
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to_user_id: profile.id, content: "👋" }),
+        body: JSON.stringify({ to_user_id: profile.id, content: messageText.trim() }),
       });
       if (res.ok) {
-        onClose();
-        router.push("/messages");
+        setMessageSent(true);
+        setMessageText("");
+        setTimeout(() => {
+          setShowComposer(false);
+          setMessageSent(false);
+        }, 1500);
       }
     } catch {}
     setMessageSending(false);
@@ -379,20 +386,75 @@ export default function ProfileCard({
                     {profile.is_following ? "Following" : "Follow"}
                   </button>
                   <button
-                    onClick={handleMessage}
-                    disabled={messageSending}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
+                    onClick={() => { setShowComposer(true); setTimeout(() => msgInputRef.current?.focus(), 100); }}
+                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer"
                     style={{
                       background: "rgba(255,255,255,0.08)",
                       color: "var(--sunset-mauve)",
                       border: "1px solid rgba(255,255,255,0.1)",
                     }}
                   >
-                    {messageSending ? "..." : "Message"}
+                    Message
                   </button>
                 </div>
               ) : null}
             </div>
+
+            {/* ── Message composer popup ── */}
+              {showComposer && profile && (
+                <div
+                  className="px-5 py-4"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  {messageSent ? (
+                    <div className="text-center py-2">
+                      <p className="text-sm font-semibold" style={{ color: "var(--sunset-warm)" }}>
+                        ✓ Message sent
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold" style={{ color: "var(--sunset-mauve)" }}>
+                          Message {profile.display_name}
+                        </p>
+                        <button
+                          onClick={() => setShowComposer(false)}
+                          className="text-xs bg-transparent border-none cursor-pointer"
+                          style={{ color: "var(--sunset-dusk)" }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          ref={msgInputRef}
+                          type="text"
+                          value={messageText}
+                          onChange={(e) => setMessageText(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                          placeholder="Type a message..."
+                          className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
+                          style={{
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                          }}
+                          disabled={messageSending}
+                        />
+                        <button
+                          onClick={handleSendMessage}
+                          disabled={messageSending || !messageText.trim()}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer disabled:opacity-40"
+                          style={{ background: "var(--sunset-warm)", color: "var(--text-inverse)" }}
+                        >
+                          {messageSending ? "..." : "→"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
             {/* ── Bottom strip ── */}
             <div
