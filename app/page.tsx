@@ -91,12 +91,10 @@ function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }
         >
           👤 My Profile
         </ProfileLink>
-        <div className="relative inline-block">
-          <a href="/messages" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
-            ✉️ Messages
-          </a>
+        <a href="/messages" className="inline-flex items-center gap-1 text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
+          ✉️ Messages
           <UnreadDot />
-        </div>
+        </a>
         <a href="/settings" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
           ⚙️ Settings
         </a>

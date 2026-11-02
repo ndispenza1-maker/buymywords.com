@@ -26,11 +26,8 @@ export default function UnreadDot() {
 
   return (
     <span
-      className="absolute -top-0.5 -right-1.5 w-2.5 h-2.5 rounded-full"
-      style={{
-        background: "var(--sunset-warm)",
-        border: "2px solid var(--bg-card)",
-      }}
+      className="inline-block w-2 h-2 rounded-full shrink-0"
+      style={{ background: "var(--sunset-warm)" }}
     />
   );
 }
