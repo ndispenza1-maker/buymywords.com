@@ -2,6 +2,7 @@ import { getAuthUser } from "@/lib/auth";
 import NavBar from "@/components/NavBar";
 import FeedClient from "./feed/FeedClient";
 import ProfileLink from "@/components/ProfileLink";
+import UnreadDot from "@/components/UnreadDot";
 
 function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }) {
   if (!user) {
@@ -90,12 +91,12 @@ function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }
         >
           👤 My Profile
         </ProfileLink>
-        <a href="/messages" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
-          ✉️ Messages
-        </a>
-        <a href="/notifications" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
-          🔔 Notifications
-        </a>
+        <div className="relative inline-block">
+          <a href="/messages" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
+            ✉️ Messages
+          </a>
+          <UnreadDot />
+        </div>
         <a href="/settings" className="block text-sm py-1 no-underline" style={{ color: "var(--text)" }}>
           ⚙️ Settings
         </a>

@@ -34,6 +34,9 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
       .then((r) => r.json())
       .then((d) => setConversations(d.conversations))
       .catch(() => {});
+
+    // Mark messages as read
+    fetch("/api/messages/unread", { method: "POST" }).catch(() => {});
   }, []);
 
   const openConvo = async (id: string) => {
