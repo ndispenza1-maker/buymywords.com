@@ -45,6 +45,7 @@ export default function MemberList({ currentUserId, profileComplete }: { current
             key={m.id}
             onClick={() => setSelectedUserId(m.id)}
             className="flex items-center gap-2.5 w-full bg-transparent border-none cursor-pointer p-0 text-left"
+          >
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{
