@@ -3,6 +3,7 @@ import NavBar from "@/components/NavBar";
 import FeedClient from "./feed/FeedClient";
 import ProfileLink from "@/components/ProfileLink";
 import UnreadDot from "@/components/UnreadDot";
+import MemberList from "@/components/MemberList";
 
 function LeftSidebar({ user }: { user: Awaited<ReturnType<typeof getAuthUser>> }) {
   if (!user) {
@@ -130,7 +131,7 @@ export default async function HomePage() {
           {/* Right sidebar */}
           <aside className="hidden xl:block w-72 shrink-0">
             <div
-              className="sticky top-20 rounded-xl p-4"
+              className="sticky top-20 rounded-xl p-4 mb-4"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
             >
               <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--text-muted)" }}>
@@ -139,6 +140,12 @@ export default async function HomePage() {
               <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 No bots. No algorithm. No noise. Just Real people using their words to sell their products, views and ideas.
               </p>
+            </div>
+            <div
+              className="sticky top-48 rounded-xl p-4"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            >
+              <MemberList />
             </div>
           </aside>
         </div>
