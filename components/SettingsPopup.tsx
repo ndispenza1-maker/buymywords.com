@@ -93,22 +93,58 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
       </p>
 
       <div className="space-y-2">
-        {/* Shopper Mall+ */}
-        {accountType === "shopper" && subscriptionTier !== "shopper" && (
-          <button
-            onClick={() => handleCheckout("price_1UXSk22ctK45EjG7uQa1FKw0")}
-            disabled={!!loading}
-            className="w-full p-3 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🔓 Mall+</p>
-                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Chat, comment, message, follow</p>
+        {/* Shopper options */}
+        {accountType === "shopper" && (
+          <>
+            {subscriptionTier !== "shopper" && (
+              <button
+                onClick={() => handleCheckout("price_1UXSk22ctK45EjG7uQa1FKw0")}
+                disabled={!!loading}
+                className="w-full p-3 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🔓 Mall+</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Chat, comment, message, follow</p>
+                  </div>
+                  <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$9.99/mo</p>
+                </div>
+              </button>
+            )}
+
+            <p className="text-[10px] font-semibold mt-4 mb-2" style={{ color: "var(--text-muted)" }}>
+              Ready to build?
+            </p>
+            <button
+              onClick={() => handleCheckout("price_1UX2Mh2ctK45EjG7Cd3NbKEA")}
+              disabled={!!loading}
+              className="w-full p-3 rounded-xl text-left border-none cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🔗 Connect Existing</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Link your project to The Mall</p>
+                </div>
+                <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$19.99/mo</p>
               </div>
-              <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$9.99/mo</p>
-            </div>
-          </button>
+            </button>
+            <button
+              onClick={() => handleCheckout("price_1UXScd2ctK45EjG7QbTNoaey")}
+              disabled={!!loading}
+              className="w-full p-3 rounded-xl text-left border-none cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🏗️ Start Fresh</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Blank store + AI assistant</p>
+                </div>
+                <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$39.99/mo</p>
+              </div>
+            </button>
+          </>
         )}
 
         {/* Store Owner plans */}
