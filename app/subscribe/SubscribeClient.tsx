@@ -5,8 +5,13 @@ import { useState } from "react";
 export default function SubscribeClient() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const handleCheckout = async (priceId: string, storeType: "existing" | "fresh") => {
+    if (!agreed) {
+      setError("You must agree to the Terms of Service and Privacy Policy");
+      return;
+    }
     setLoading(priceId);
     setError("");
 
@@ -186,7 +191,25 @@ export default function SubscribeClient() {
         </div>
       </div>
 
-      <p className="text-center text-xs mt-8 mb-12" style={{ color: "var(--text-muted)" }}>
+      <div className="flex justify-center mt-8 mb-4">
+        <label className="flex items-start gap-2 cursor-pointer max-w-md">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="w-4 h-4 mt-0.5 rounded cursor-pointer accent-[var(--accent)]"
+          />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            I agree to The Mall&apos;s{" "}
+            <a href="/terms" target="_blank" style={{ color: "var(--accent)" }}>Terms of Service</a>
+            {" "}and{" "}
+            <a href="/privacy" target="_blank" style={{ color: "var(--accent)" }}>Privacy Policy</a>.
+            Subscriptions auto-renew and are non-refundable.
+          </span>
+        </label>
+      </div>
+
+      <p className="text-center text-xs mb-12" style={{ color: "var(--text-muted)" }}>
         Cancel anytime. Your store stays up as long as you&apos;re subscribed.
       </p>
     </div>

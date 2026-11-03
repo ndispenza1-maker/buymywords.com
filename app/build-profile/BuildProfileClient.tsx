@@ -227,14 +227,37 @@ export default function BuildProfileClient({
                 </ul>
               </div>
 
+              <label className="flex items-start gap-2 cursor-pointer mb-4 text-left">
+                <input
+                  type="checkbox"
+                  id="shopper-agree"
+                  className="w-4 h-4 mt-0.5 rounded cursor-pointer accent-[var(--accent)]"
+                />
+                <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                  I agree to the{" "}
+                  <a href="/terms" target="_blank" style={{ color: "var(--accent)" }}>Terms</a>
+                  {" "}&amp;{" "}
+                  <a href="/privacy" target="_blank" style={{ color: "var(--accent)" }}>Privacy Policy</a>.
+                  Auto-renews at $9.99/mo.
+                </span>
+              </label>
+
               <button
-                onClick={handleShopperUpgrade}
+                onClick={() => {
+                  const cb = document.getElementById("shopper-agree") as HTMLInputElement;
+                  if (!cb?.checked) { setError("You must agree to the Terms and Privacy Policy"); return; }
+                  handleShopperUpgrade();
+                }}
                 disabled={subLoading}
                 className="w-full py-3 rounded-full font-semibold text-sm border-none cursor-pointer disabled:opacity-50 mb-3"
                 style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
               >
                 {subLoading ? "Redirecting..." : "Upgrade to Mall+"}
               </button>
+
+              {error && (
+                <p className="text-xs text-center mb-2" style={{ color: "#E85D27" }}>{error}</p>
+              )}
 
               <button
                 onClick={handleShopperSkip}
