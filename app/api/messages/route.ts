@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { checkAccess } from "@/lib/subscription";
+import { isRateLimited } from "@/lib/security";
 
 // GET — list conversations
 export async function GET() {
@@ -44,6 +45,11 @@ export async function POST(request: NextRequest) {
   const access = await checkAccess(user.id);
   if (!access.canMessage) {
     return NextResponse.json({ error: access.reason, gated: true }, { status: 403 });
+  }
+
+  // H-4: Rate limit messaging — 30 messages per user per 15 minutes
+  if (isRateLimited(`msg:${user.id}`, 30, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many messages. Please wait a few minutes." }, { status: 429 });
   }
 
   const { to_user_id, conversation_id, content } = await request.json();

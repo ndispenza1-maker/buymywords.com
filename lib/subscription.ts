@@ -19,7 +19,7 @@ interface SubCheck {
 export async function checkAccess(userId: string): Promise<SubCheck> {
   const sql = getSQL();
   const rows = await sql`
-    SELECT account_type, subscription_status, subscription_tier
+    SELECT account_type, subscription_status, subscription_tier, founders_expires_at
     FROM users WHERE id = ${userId}
   `;
 
@@ -27,11 +27,20 @@ export async function checkAccess(userId: string): Promise<SubCheck> {
     return { canComment: false, canMessage: false, canFollow: false, reason: "User not found", tier: null, subscriptionStatus: null };
   }
 
-  const { account_type, subscription_status, subscription_tier } = rows[0];
+  const { account_type, subscription_status, subscription_tier, founders_expires_at } = rows[0];
 
   // Store owners always have full access — they're paying rent
   if (account_type === "store_owner") {
     return { canComment: true, canMessage: true, canFollow: true, reason: null, tier: subscription_tier || "owner", subscriptionStatus: subscription_status || "active" };
+  }
+
+  // Founders access — check expiry
+  if (subscription_tier === "founders" && founders_expires_at) {
+    const expires = new Date(founders_expires_at as string);
+    if (expires > new Date()) {
+      return { canComment: true, canMessage: true, canFollow: true, reason: null, tier: "founders", subscriptionStatus: "active" };
+    }
+    // Founders expired — fall through to free gating
   }
 
   // Shoppers — check subscription

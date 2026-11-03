@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
+import { isRateLimited } from "@/lib/security";
 
 // LLM calls can be slow
 export const maxDuration = 60;
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 // The Mall's own Claude API key — server-side only, never exposed
 const MALL_CLAUDE_KEY = process.env.MALL_CLAUDE_API_KEY;
@@ -123,6 +124,11 @@ export async function POST(req: NextRequest) {
 
   if (!stores[0]) {
     return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  }
+
+  // H-3: Rate limit assistant chat — 30 requests per user per 15 minutes
+  if (isRateLimited(`assistant:${userId}`, 30, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please wait a few minutes." }, { status: 429 });
   }
 
   if (!stores[0].assistant_enabled) {

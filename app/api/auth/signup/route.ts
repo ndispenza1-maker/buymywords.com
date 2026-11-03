@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { hashPassword, setAuthCookie } from "@/lib/auth";
 import { checkUserAgent, isRateLimited, isHoneypotTriggered } from "@/lib/security";
+import { redeemCode } from "@/lib/founders";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,15 +29,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
     const sql = getSQL();
 
     const existing = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
     if (existing.length > 0) {
-      return NextResponse.json({ error: "Email already taken" }, { status: 409 });
+      // M-3: Generic response to prevent email enumeration
+      // Hash a fake password to keep response timing consistent
+      await hashPassword("timing-equalization-dummy");
+      return NextResponse.json({ ok: true });
     }
 
     const password_hash = await hashPassword(password);
@@ -49,7 +53,14 @@ export async function POST(request: NextRequest) {
 
     await setAuthCookie(rows[0].id as string);
 
-    return NextResponse.json({ ok: true });
+    // Redeem founders code if provided
+    const foundersCode = body.founders_code?.trim();
+    let foundersResult = null;
+    if (foundersCode) {
+      foundersResult = await redeemCode(foundersCode, rows[0].id as string);
+    }
+
+    return NextResponse.json({ ok: true, founders: foundersResult });
   } catch (err) {
     console.error("Signup error:", err);
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });

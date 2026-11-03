@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { getSQL } from "./db";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET is not set — refusing to run with insecure default");
+  return secret;
+}
 
 export interface User {
   id: string;
@@ -29,7 +33,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function createToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: "30d" });
 }
 
 export async function setAuthCookie(userId: string) {
@@ -50,7 +54,7 @@ export async function getAuthUser(): Promise<User | null> {
     const token = cookieStore.get("auth_token")?.value;
     if (!token) return null;
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
     const sql = getSQL();
     const rows = await sql`
       SELECT id, email, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete, store_built, subscription_status, subscription_tier

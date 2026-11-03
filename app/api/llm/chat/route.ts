@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
+import { decryptOrPassthrough } from "@/lib/crypto";
+import { isRateLimited } from "@/lib/security";
 
 // Increase serverless function timeout for LLM calls
 export const maxDuration = 60;
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 async function getAuthUserId(): Promise<string | null> {
   try {
@@ -81,18 +83,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "LLM not configured. Add your API key first." }, { status: 400 });
   }
 
+  // H-3: Rate limit LLM chat — 30 requests per user per 15 minutes
+  if (isRateLimited(`llm:${userId}`, 30, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Please wait a few minutes." }, { status: 429 });
+  }
+
+  // Decrypt stored API key
+  const apiKey = decryptOrPassthrough(store.llm_api_key as string);
+
   // Build context-aware system prompt
   const contextPrompt = `${SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}`;
 
   try {
     if (store.llm_provider === "openai") {
-      return await callOpenAI(store.llm_api_key, contextPrompt, messages);
+      return await callOpenAI(apiKey, contextPrompt, messages);
     } else if (store.llm_provider === "anthropic") {
-      return await callAnthropic(store.llm_api_key, contextPrompt, messages);
+      return await callAnthropic(apiKey, contextPrompt, messages);
     } else if (store.llm_provider === "google") {
-      return await callGoogle(store.llm_api_key, contextPrompt, messages);
+      return await callGoogle(apiKey, contextPrompt, messages);
     } else if (store.llm_provider === "grok") {
-      return await callGrok(store.llm_api_key, contextPrompt, messages);
+      return await callGrok(apiKey, contextPrompt, messages);
     } else {
       return NextResponse.json({ error: "Unsupported LLM provider" }, { status: 400 });
     }
@@ -179,10 +189,10 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
   }));
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,

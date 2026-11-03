@@ -1,0 +1,20 @@
+{
+  "store": "Repetition",
+  "owner": "nick@test.com",
+  "archivedAt": "2026-11-03T03:16:51.884Z",
+  "builderChat": [],
+  "assistantChat": [
+    {
+      "role": "assistant",
+      "content": "Hey, welcome! 👋 I'm your Mall Assistant, and I'm here to help you get \"Repetition\" set up. No experience needed.\n\nBefore we start, have you used any AI tools before, like ChatGPT? Or is this your first time with one?\n\nEither answer is totally fine. It just helps me know how much detail to give you."
+    },
+    {
+      "role": "user",
+      "content": "ya a little"
+    },
+    {
+      "role": "assistant",
+      "content": "Great, that's a good starting point! Since you've used a little AI already, we can skip the basics.\n\nHere's the first step: get a free API key. An API key is basically a password that lets your store's chat panel talk to an AI. I'd recommend Google AI Studio because it's free and has generous limits.\n\n1. Go to **aistudio.google.com** and sign in with your Google account.\n2. Look for a button that says **\"Get API key\"** (usually on the left side or top of the page).\n3. Click **\"Create API key\"**, then copy the key it gives you.\n\nLet me know once you have the key copied, or tell me if anything on the screen looks different from what I described."
+    }
+  ]
+}

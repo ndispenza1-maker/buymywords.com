@@ -10,7 +10,7 @@ interface MallAssistantProps {
 }
 
 export default function MallAssistant({ storeId, storeName }: MallAssistantProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

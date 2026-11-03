@@ -6,19 +6,32 @@ import { useRouter } from "next/navigation";
 export default function BuildProfileClient({
   userId,
   displayName,
+  isFounder,
 }: {
   userId: string;
   displayName: string;
+  isFounder: boolean;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<"choose" | "shopper-details" | "shopper-sub">("choose");
+  const [step, setStep] = useState<
+    "choose" | "shopper-details" | "shopper-sub" | "owner-setup"
+  >("choose");
   const [bio, setBio] = useState("");
+  const [storeName, setStoreName] = useState("");
+  const [storeDesc, setStoreDesc] = useState("");
+  const [storeType, setStoreType] = useState<"existing" | "fresh" | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [subLoading, setSubLoading] = useState(false);
 
   const handleStoreOwner = async () => {
-    // Set account_type but DON'T complete profile yet — that happens after payment
+    if (isFounder) {
+      // Founders skip payment — go straight to store setup
+      setStep("owner-setup");
+      return;
+    }
+
+    // Non-founders: set account_type pending and go to subscribe
     setSaving(true);
     setError("");
     const res = await fetch("/api/profile/build", {
@@ -35,17 +48,64 @@ export default function BuildProfileClient({
     }
   };
 
+  const handleFounderStoreSubmit = async () => {
+    if (!storeType) {
+      setError("Pick a store type");
+      return;
+    }
+    if (!storeName.trim()) {
+      setError("Give your project a name");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    const res = await fetch("/api/profile/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account_type: "store_owner",
+        bio: "",
+        store_name: storeName.trim(),
+        store_description: storeDesc.trim(),
+        store_type: storeType,
+        founders: true,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/store/${data.userId || userId}`);
+      router.refresh();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Something went wrong");
+      setSaving(false);
+    }
+  };
+
   const handleShopperSave = async () => {
     setSaving(true);
     setError("");
     const res = await fetch("/api/profile/build", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ account_type: "shopper", bio: bio.trim() }),
+      body: JSON.stringify({
+        account_type: "shopper",
+        bio: bio.trim(),
+        founders: isFounder || undefined,
+      }),
     });
     if (res.ok) {
-      setStep("shopper-sub");
-      setSaving(false);
+      if (isFounder) {
+        // Founders shoppers skip payment — straight in
+        router.push("/");
+        router.refresh();
+      } else {
+        setStep("shopper-sub");
+        setSaving(false);
+      }
     } else {
       const data = await res.json();
       setError(data.error || "Something went wrong");
@@ -132,7 +192,126 @@ export default function BuildProfileClient({
           </>
         )}
 
-        {/* Step 2a: Shopper details */}
+        {/* Founders Store Owner Setup — no payment */}
+        {step === "owner-setup" && (
+          <>
+            <button
+              onClick={() => { setStep("choose"); setStoreType(null); setError(""); }}
+              className="text-sm bg-transparent border-none cursor-pointer mb-4"
+              style={{ color: "var(--accent)" }}
+            >
+              ← Back
+            </button>
+
+            <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+              Set Up Your Store
+            </h1>
+            <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
+              Pick your path, name your project, and go.
+            </p>
+
+            {/* Store Type Picker */}
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => { setStoreType("existing"); setError(""); }}
+                className="w-full text-left p-4 rounded-xl border-none cursor-pointer transition-all"
+                style={{
+                  background: "var(--bg)",
+                  border: storeType === "existing" ? "2px solid var(--accent)" : "2px solid var(--border)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🔗</span>
+                  <div>
+                    <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                      Connect Existing
+                    </h3>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      Link a website or project you already have.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { setStoreType("fresh"); setError(""); }}
+                className="w-full text-left p-4 rounded-xl border-none cursor-pointer transition-all"
+                style={{
+                  background: "var(--bg)",
+                  border: storeType === "fresh" ? "2px solid var(--accent)" : "2px solid var(--border)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🏗️</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                        Start Fresh
+                      </h3>
+                      <span
+                        title="Includes an AI assistant that helps you build your store page, set up payments, connect a mailing list, and write copy."
+                        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold cursor-help shrink-0"
+                        style={{ background: "var(--border)", color: "var(--text-muted)" }}
+                      >
+                        i
+                      </span>
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      Blank store + AI assistant to help you build it.
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Project Name */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
+                Project Name
+              </label>
+              <input
+                type="text"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="What's it called?"
+                maxLength={60}
+                className="w-full px-4 py-3 rounded-lg text-sm outline-none"
+                style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="mb-6">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
+                Quick Description
+              </label>
+              <textarea
+                value={storeDesc}
+                onChange={(e) => setStoreDesc(e.target.value)}
+                placeholder="One or two lines — what do you sell?"
+                rows={2}
+                maxLength={200}
+                className="w-full resize-none text-sm outline-none px-4 py-3 rounded-lg"
+                style={{ border: "1px solid var(--border)", background: "var(--bg)", fontFamily: "inherit" }}
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm mb-4 text-center" style={{ color: "#E85D27" }}>{error}</p>
+            )}
+
+            <button
+              onClick={handleFounderStoreSubmit}
+              disabled={saving}
+              className="w-full py-3 rounded-full font-semibold text-sm border-none cursor-pointer disabled:opacity-40"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              {saving ? "Setting up..." : "Build My Store →"}
+            </button>
+          </>
+        )}
+
+        {/* Shopper details */}
         {step === "shopper-details" && (
           <>
             <button
@@ -195,7 +374,7 @@ export default function BuildProfileClient({
           </>
         )}
 
-        {/* Step 2b: Shopper subscription offer */}
+        {/* Shopper subscription offer (non-founders only) */}
         {step === "shopper-sub" && (
           <>
             <div className="text-center">

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
+import { encrypt } from "@/lib/crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 async function getAuthUserId(): Promise<string | null> {
   try {
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   try {
     // Build dynamic update
     if (llm_provider !== undefined && llm_api_key !== undefined) {
-      await sql`UPDATE stores SET llm_provider = ${llm_provider}, llm_api_key = ${llm_api_key} WHERE id = ${store_id}`;
+      await sql`UPDATE stores SET llm_provider = ${llm_provider}, llm_api_key = ${llm_api_key ? encrypt(llm_api_key) : null} WHERE id = ${store_id}`;
     }
 
     if (store_content !== undefined) {

@@ -79,7 +79,7 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
       <main className="w-full" style={{ height: "calc(100vh - 56px)" }}>
         <iframe
           srcDoc={storeContent}
-          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+          sandbox="allow-scripts allow-forms allow-popups"
           className="w-full h-full border-none"
           title={storeName}
         />
