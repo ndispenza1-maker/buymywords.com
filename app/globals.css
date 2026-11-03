@@ -24,6 +24,21 @@
   --border-strong: #C4A1A1;
 }
 
+/* Dark mode */
+[data-theme="dark"] {
+  --bg: #1A1212;
+  --bg-card: #2D2424;
+  --bg-nav: #1A1212;
+  --text: #FDF8F4;
+  --text-muted: #A89090;
+  --text-inverse: #FDF8F4;
+  --accent: #F4845F;
+  --accent-hover: #F7A080;
+  --accent-light: #3D2828;
+  --border: #3D2828;
+  --border-strong: #5A4040;
+}
+
 * {
   box-sizing: border-box;
 }

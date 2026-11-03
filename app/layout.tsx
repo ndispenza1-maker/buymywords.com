@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import ThemeInit from "@/components/ThemeInit";
 
 export const metadata: Metadata = {
   title: "The Mall of Projects",
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <ThemeInit />
         {children}
       </body>
     </html>

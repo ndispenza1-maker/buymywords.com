@@ -4,18 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import ProfileCard from "./ProfileCard";
+import SettingsPopup from "./SettingsPopup";
 
 interface NavUser {
   id: string;
   display_name: string;
   avatar_url: string | null;
   profile_complete: boolean;
+  account_type?: string | null;
+  subscription_status?: string | null;
+  subscription_tier?: string | null;
 }
 
 export default function NavBar({ user }: { user: NavUser | null }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showProfileCard, setShowProfileCard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -127,7 +132,13 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                       >
                         👤 My Profile
                       </button>
-
+                      <button
+                        onClick={() => { setMenuOpen(false); setShowSettings(true); }}
+                        className="block w-full text-left px-4 py-2 text-sm bg-transparent border-none cursor-pointer"
+                        style={{ color: "var(--text)" }}
+                      >
+                        ⚙️ Settings
+                      </button>
                     </>
                   )}
 
@@ -150,6 +161,14 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                 currentUserId={user.id}
                 profileComplete={user.profile_complete}
                 onClose={() => setShowProfileCard(false)}
+              />
+            )}
+            {showSettings && (
+              <SettingsPopup
+                onClose={() => setShowSettings(false)}
+                accountType={user.account_type || null}
+                subscriptionStatus={user.subscription_status || null}
+                subscriptionTier={user.subscription_tier || null}
               />
             )}
           </>
