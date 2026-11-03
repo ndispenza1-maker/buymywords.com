@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
             subscription_id = ${subscriptionId},
             subscription_status = 'active',
             subscription_price_id = ${priceId},
-            subscription_tier = ${resolvedTier}
+            subscription_tier = ${resolvedTier},
+            profile_complete = true
           WHERE id = ${userId}
         `;
       }

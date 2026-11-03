@@ -15,6 +15,7 @@ export interface User {
   created_at: string;
   account_type: string | null; // 'shopper' | 'store_owner' | null
   profile_complete: boolean;
+  store_built: boolean;
   subscription_status: string | null;
   subscription_tier: string | null;
 }
@@ -52,7 +53,7 @@ export async function getAuthUser(): Promise<User | null> {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     const sql = getSQL();
     const rows = await sql`
-      SELECT id, email, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete, subscription_status, subscription_tier
+      SELECT id, email, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete, store_built, subscription_status, subscription_tier
       FROM users WHERE id = ${decoded.userId}
     `;
     return (rows[0] as User) || null;

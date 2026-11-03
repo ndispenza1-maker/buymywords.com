@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
       RETURNING id
     `;
 
-    // Mark store as built
-    await sql`UPDATE users SET store_built = true WHERE id = ${userId}`;
+    // Mark store as built + profile complete (in case webhook hasn't fired yet)
+    await sql`UPDATE users SET store_built = true, profile_complete = true WHERE id = ${userId}`;
 
     return NextResponse.json({ store_id: stores[0].id }, { status: 201 });
   } catch (e: unknown) {

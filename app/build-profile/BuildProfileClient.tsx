@@ -18,13 +18,13 @@ export default function BuildProfileClient({
   const [subLoading, setSubLoading] = useState(false);
 
   const handleStoreOwner = async () => {
-    // Save profile as store_owner, then go to subscribe page
+    // Set account_type but DON'T complete profile yet — that happens after payment
     setSaving(true);
     setError("");
     const res = await fetch("/api/profile/build", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ account_type: "store_owner", bio: "" }),
+      body: JSON.stringify({ account_type: "store_owner", bio: "", pending: true }),
     });
     if (res.ok) {
       router.push("/subscribe");
