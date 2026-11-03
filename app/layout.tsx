@@ -1,7 +1,5 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { WizardProvider } from "@/components/WizardContext";
-import BuildStoreWizard from "@/components/BuildStoreWizard";
 
 export const metadata: Metadata = {
   title: "The Mall of Projects",
@@ -16,10 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <WizardProvider>
-          {children}
-          <BuildStoreWizard />
-        </WizardProvider>
+        {children}
       </body>
     </html>
   );

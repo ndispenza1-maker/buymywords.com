@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useWizard } from "./WizardContext";
+
 
 interface ProfileData {
   id: string;
@@ -49,7 +49,7 @@ export default function ProfileCard({
   const [showUpgradeHint, setShowUpgradeHint] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const msgInputRef = useRef<HTMLInputElement>(null);
-  const { openWizard } = useWizard();
+
 
   const handleSendMessage = async () => {
     if (!profile || !currentUserId || !messageText.trim() || messageSending) return;
@@ -337,9 +337,9 @@ export default function ProfileCard({
 
               {/* ── Get Started (own card, store owner, no store yet) ── */}
               {profile.is_self && profile.account_type === "store_owner" && !profile.store_built && (
-                <button
-                  onClick={() => { onClose(); openWizard(); }}
-                  className="w-full flex items-center gap-2 rounded-xl px-4 py-3 mb-4 border-none cursor-pointer transition-all"
+                <a
+                  href="/subscribe"
+                  className="w-full flex items-center gap-2 rounded-xl px-4 py-3 mb-4 no-underline cursor-pointer transition-all"
                   style={{
                     background: "rgba(244,132,95,0.1)",
                     border: "1px solid rgba(244,132,95,0.2)",
@@ -359,7 +359,7 @@ export default function ProfileCard({
                     Get Started — Build Your Store
                   </span>
                   <span className="text-xs" style={{ color: "var(--sunset-dusk)" }}>→</span>
-                </button>
+                </a>
               )}
 
               {/* ── Action buttons ── */}
