@@ -275,7 +275,7 @@ export default function TermsContent() {
             You may opt out of this arbitration agreement by sending written notice within 30 days
             of creating your account. If arbitration is found to be inapplicable, you agree to
             submit to the exclusive jurisdiction of the state and federal courts located in the
-            State of New Jersey.
+            State of Florida.
           </p>
         </section>
 
@@ -300,7 +300,7 @@ export default function TermsContent() {
           </h2>
           <p>
             These Terms shall be governed by and construed in accordance with the laws of the State
-            of New Jersey, United States, without regard to conflict of law principles.
+            of Florida, United States, without regard to conflict of law principles.
           </p>
         </section>
 
