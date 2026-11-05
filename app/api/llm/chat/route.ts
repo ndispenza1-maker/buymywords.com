@@ -145,15 +145,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// All provider calls get a 50s timeout so they fail gracefully before the 60s Vercel limit
-function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 50000): Promise<Response> {
+// All provider calls get a 45s timeout so they fail gracefully before the 60s Vercel limit
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 45000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
+// Retry once on 503/429 (provider overloaded) with a 2s backoff
+async function fetchWithRetry(url: string, init: RequestInit, retries = 1): Promise<Response> {
+  const res = await fetchWithTimeout(url, init);
+  if ((res.status === 503 || res.status === 429) && retries > 0) {
+    await new Promise(r => setTimeout(r, 2000));
+    return fetchWithRetry(url, init, retries - 1);
+  }
+  return res;
+}
+
 async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+  const res = await fetchWithRetry("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -182,7 +192,7 @@ async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<
 }
 
 async function callAnthropic(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+  const res = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -227,8 +237,9 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
     parts: [{ text: m.content }],
   }));
 
-  const res = await fetchWithTimeout(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  // Use gemini-3.6-flash (stable GA) — 3.8-flash gets 503 demand spikes
+  const res = await fetchWithRetry(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -251,7 +262,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
 }
 
 async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetchWithTimeout("https://api.x.ai/v1/chat/completions", {
+  const res = await fetchWithRetry("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
