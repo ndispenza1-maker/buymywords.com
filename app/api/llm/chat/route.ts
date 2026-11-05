@@ -146,7 +146,7 @@ async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<
       "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: "gpt-6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages,
@@ -176,7 +176,7 @@ async function callAnthropic(apiKey: string, systemPrompt: string, messages: Arr
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-haiku-5-5",
+      model: "claude-haiku-5-5",  // Current as of Oct 2026
       max_tokens: 8000,
       system: systemPrompt,
       messages: messages.map(m => ({
@@ -214,7 +214,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
   }));
 
   const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -244,7 +244,7 @@ async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ 
       "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "grok-3-mini",
+      model: "grok-4.3",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages,

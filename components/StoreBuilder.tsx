@@ -34,7 +34,7 @@ export default function StoreBuilder({
   const [preview, setPreview] = useState<string>(storeContent || "");
   const [published, setPublished] = useState(!!storeContent);
   const [showSetup, setShowSetup] = useState(!initialHasKey);
-  const [provider, setProvider] = useState(initialProvider || "openai");
+  const [provider, setProvider] = useState(initialProvider || "google");
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(initialHasKey);
   const [setupError, setSetupError] = useState("");
@@ -283,10 +283,10 @@ export default function StoreBuilder({
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none cursor-pointer"
                 style={inputStyle}
               >
-                <option value="openai">OpenAI (GPT-4o mini)</option>
-                <option value="anthropic">Anthropic (Claude Haiku 5.5)</option>
-                <option value="google">Google (Gemini Flash)</option>
-                <option value="grok">Grok (xAI)</option>
+                <option value="google">Google AI (Gemini Flash) — free tier</option>
+                <option value="openai">OpenAI (GPT-6 Luna)</option>
+                <option value="anthropic">Anthropic (Claude Haiku)</option>
+                <option value="grok">xAI (Grok)</option>
               </select>
             </div>
             <div>
