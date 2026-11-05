@@ -191,8 +191,8 @@ function SignupContent() {
                 value={form.password}
                 onChange={set("password")}
                 required
-                minLength={6}
-                placeholder="Min 6 characters"
+                minLength={8}
+                placeholder="Min 8 characters"
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none"
                 style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
               />

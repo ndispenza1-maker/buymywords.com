@@ -101,6 +101,7 @@ export default function StoreBuilder({
     if (p === "anthropic" && !k.startsWith("sk-ant-")) return "Anthropic keys start with \"sk-ant-\". Double-check what you pasted.";
     if (p === "grok" && !k.startsWith("xai-")) return "Grok keys start with \"xai-\". Double-check what you pasted.";
     if (p === "google" && k.startsWith("sk-")) return "That looks like an OpenAI key. Switch the dropdown to OpenAI, or get a Google key from aistudio.google.com.";
+    if (p === "google" && !k.startsWith("AIza") && !k.startsWith("AQ.")) return "That doesn't look like a Google AI key. Get a free one at aistudio.google.com.";
     return null;
   };
 
