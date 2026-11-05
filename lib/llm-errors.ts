@@ -97,9 +97,19 @@ export function validateKeyFormat(provider: ProviderName, key: string): string |
       }
       break;
     case "google":
-      // Google AI Studio keys are typically 39 chars, start with AIza
+      // Google AI Studio keys: legacy format starts with AIza, newer format starts with AQ.
       if (trimmed.startsWith("sk-")) {
         return "That looks like an OpenAI key, not a Google key. Switch the provider dropdown to OpenAI, or get a Google key from aistudio.google.com.";
+      }
+      if (trimmed.startsWith("xai-")) {
+        return "That looks like a Grok key, not a Google key. Switch the provider dropdown to Grok, or get a Google key from aistudio.google.com.";
+      }
+      if (trimmed.startsWith("sk-ant-")) {
+        return "That looks like an Anthropic key, not a Google key. Switch the provider dropdown to Anthropic, or get a Google key from aistudio.google.com.";
+      }
+      // Accept AIza (legacy) and AQ. (current) prefixes
+      if (!trimmed.startsWith("AIza") && !trimmed.startsWith("AQ.")) {
+        return "That doesn't look like a Google AI key. Get a free one at aistudio.google.com — click \"Get API Key\" → \"Create API Key\" → copy it.";
       }
       break;
     case "grok":

@@ -124,8 +124,15 @@ export async function POST(req: NextRequest) {
         { status: 502 }
       );
     }
-    // Network / timeout fallback
-    if (msg.includes("fetch") || msg.includes("ETIMEDOUT") || msg.includes("ECONNREFUSED")) {
+    // Timeout (AbortController)
+    if (msg.includes("abort") || msg.includes("AbortError") || msg.includes("ETIMEDOUT")) {
+      return NextResponse.json(
+        { error: "Your AI took too long to respond. Try a shorter request, or try again in a moment." },
+        { status: 504 }
+      );
+    }
+    // Network errors
+    if (msg.includes("fetch") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
       return NextResponse.json(
         { error: "Couldn't reach your AI provider. Check your internet and try again." },
         { status: 502 }
@@ -138,8 +145,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// All provider calls get a 50s timeout so they fail gracefully before the 60s Vercel limit
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 50000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -168,7 +182,7 @@ async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<
 }
 
 async function callAnthropic(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -213,7 +227,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
     parts: [{ text: m.content }],
   }));
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
     {
       method: "POST",
@@ -237,7 +251,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
 }
 
 async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ role: string; content: string }>) {
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+  const res = await fetchWithTimeout("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
