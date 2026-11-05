@@ -13,6 +13,19 @@ function getEncryptionKey(): Buffer {
 }
 
 /**
+ * Check whether encryption is available at runtime.
+ * Routes should call this before accepting sensitive data.
+ */
+export function isEncryptionAvailable(): boolean {
+  try {
+    getEncryptionKey();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Encrypt a plaintext string with AES-256-GCM.
  * Returns a combined string: base64(iv):base64(authTag):base64(ciphertext)
  */

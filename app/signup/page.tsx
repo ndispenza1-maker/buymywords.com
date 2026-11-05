@@ -69,11 +69,13 @@ function SignupContent() {
       setError("You must agree to the Terms of Service and Privacy Policy");
       return;
     }
-    // Store founders code in cookie so Google callback can use it
+    // Pass founders code as query param (more reliable than cookie across OAuth redirect)
+    const params = new URLSearchParams();
     if (foundersCode.trim()) {
-      document.cookie = `founders_code=${encodeURIComponent(foundersCode.trim())}; path=/; max-age=600; SameSite=Lax`;
+      params.set("founders_code", foundersCode.trim());
     }
-    window.location.href = "/api/auth/google";
+    const qs = params.toString();
+    window.location.href = `/api/auth/google${qs ? `?${qs}` : ""}`;
   };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -104,6 +106,28 @@ function SignupContent() {
           }}
         >
           <h2 className="text-xl font-bold text-center mb-2">Create your account</h2>
+
+          {/* Terms & Privacy consent — above all sign-up methods */}
+          <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded cursor-pointer accent-[var(--accent)]"
+              />
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                I agree to The Mall&apos;s{" "}
+                <Link href="/terms" target="_blank" style={{ color: "var(--accent)" }}>Terms of Service</Link>
+                {" "}and{" "}
+                <Link href="/privacy" target="_blank" style={{ color: "var(--accent)" }}>Privacy Policy</Link>
+              </span>
+            </label>
+
+          {error && (
+              <p className="text-sm text-center" style={{ color: "#E85D27" }}>
+                {error}
+              </p>
+            )}
 
           {/* Google Sign-Up Button */}
           <button
@@ -207,28 +231,6 @@ function SignupContent() {
               autoComplete="off"
               style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0 }}
             />
-
-            {/* Terms & Privacy consent checkbox */}
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded cursor-pointer accent-[var(--accent)]"
-              />
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                I agree to The Mall&apos;s{" "}
-                <Link href="/terms" target="_blank" style={{ color: "var(--accent)" }}>Terms of Service</Link>
-                {" "}and{" "}
-                <Link href="/privacy" target="_blank" style={{ color: "var(--accent)" }}>Privacy Policy</Link>
-              </span>
-            </label>
-
-            {error && (
-              <p className="text-sm text-center" style={{ color: "#E85D27" }}>
-                {error}
-              </p>
-            )}
 
             <button
               type="submit"

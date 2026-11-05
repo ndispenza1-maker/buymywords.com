@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { cookies } from "next/headers";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 
-function getRedirectUri(request: NextRequest) {
-  const proto = request.headers.get("x-forwarded-proto") || "https";
-  const host = request.headers.get("host") || "themallofprojects.com";
-  return `${proto}://${host}/api/auth/google/callback`;
-}
+const REDIRECT_URI = "https://themallofprojects.com/api/auth/google/callback";
 
 export async function GET(request: NextRequest) {
   if (!GOOGLE_CLIENT_ID) {
@@ -16,27 +11,32 @@ export async function GET(request: NextRequest) {
   }
 
   // CSRF protection: generate state token
-  const state = crypto.randomBytes(32).toString("hex");
-  const cookieStore = await cookies();
-  cookieStore.set("google_oauth_state", state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 600, // 10 minutes
-    path: "/",
-  });
+  const csrfToken = crypto.randomBytes(32).toString("hex");
 
-  const redirectUri = getRedirectUri(request);
+  // Read founders code from query param (set by signup page)
+  const foundersCode = request.nextUrl.searchParams.get("founders_code") || "";
 
-  const params = new URLSearchParams({
+  // Encode CSRF + optional founders code into state: "csrf" or "csrf:MALL-XXXX-XXXX"
+  const state = foundersCode ? `${csrfToken}:${foundersCode}` : csrfToken;
+
+  const response = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
+    redirect_uri: REDIRECT_URI,
     response_type: "code",
     scope: "openid email profile",
     state,
     access_type: "online",
     prompt: "select_account",
+  })}`);
+
+  // Store ONLY the CSRF token in the cookie (for verification on callback)
+  response.cookies.set("google_oauth_state", csrfToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 600,
+    path: "/",
   });
 
-  return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  return response;
 }

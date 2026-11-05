@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
 import { decryptOrPassthrough } from "@/lib/crypto";
 import { isRateLimited } from "@/lib/security";
+import { translateProviderError } from "@/lib/llm-errors";
 
 // Increase serverless function timeout for LLM calls
 export const maxDuration = 60;
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
   const store = stores[0];
 
   if (!store.llm_provider || !store.llm_api_key) {
-    return NextResponse.json({ error: "LLM not configured. Add your API key first." }, { status: 400 });
+    return NextResponse.json({ error: "Connect your AI first — click the ⚙️ button to add your API key." }, { status: 400 });
   }
 
   // H-3: Rate limit LLM chat — 30 requests per user per 15 minutes
@@ -104,12 +105,36 @@ export async function POST(req: NextRequest) {
     } else if (store.llm_provider === "grok") {
       return await callGrok(apiKey, contextPrompt, messages);
     } else {
-      return NextResponse.json({ error: "Unsupported LLM provider" }, { status: 400 });
+      return NextResponse.json({ error: "Pick a provider in ⚙️ settings first." }, { status: 400 });
     }
   } catch (e: unknown) {
     console.error("LLM call failed:", e);
-    const msg = e instanceof Error ? e.message : "LLM call failed";
-    return NextResponse.json({ error: msg }, { status: 502 });
+    // Parse provider + status from the structured error message
+    const msg = e instanceof Error ? e.message : "";
+    const providerMatch = msg.match(/^(OpenAI|Anthropic|Google AI|Grok) error/i);
+    const statusMatch = msg.match(/status:\s*(\d{3})/);
+    if (providerMatch || statusMatch) {
+      const providerMap: Record<string, "openai" | "anthropic" | "google" | "grok"> = {
+        openai: "openai", anthropic: "anthropic", "google ai": "google", grok: "grok",
+      };
+      const p = providerMap[(providerMatch?.[1] || store.llm_provider || "").toLowerCase()] || (store.llm_provider as "openai");
+      const s = statusMatch ? parseInt(statusMatch[1], 10) : 502;
+      return NextResponse.json(
+        { error: translateProviderError(p, s, msg) },
+        { status: 502 }
+      );
+    }
+    // Network / timeout fallback
+    if (msg.includes("fetch") || msg.includes("ETIMEDOUT") || msg.includes("ECONNREFUSED")) {
+      return NextResponse.json(
+        { error: "Couldn't reach your AI provider. Check your internet and try again." },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Something went wrong talking to your AI. Try again — if it keeps failing, check your API key in ⚙️ settings." },
+      { status: 502 }
+    );
   }
 }
 
@@ -132,7 +157,7 @@ async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`OpenAI error: ${err}`);
+    throw new Error(`OpenAI error status: ${res.status} ${err}`);
   }
 
   const data = await res.json();
@@ -163,7 +188,7 @@ async function callAnthropic(apiKey: string, systemPrompt: string, messages: Arr
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Anthropic error: ${err}`);
+    throw new Error(`Anthropic error status: ${res.status} ${err}`);
   }
 
   const data = await res.json();
@@ -203,7 +228,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Google AI error: ${err}`);
+    throw new Error(`Google AI error status: ${res.status} ${err}`);
   }
 
   const data = await res.json();
@@ -230,7 +255,7 @@ async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ 
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Grok error: ${err}`);
+    throw new Error(`Grok error status: ${res.status} ${err}`);
   }
 
   const data = await res.json();

@@ -80,26 +80,56 @@ export default function StoreBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Client-side key format hints (server validates too)
+  const getKeyHint = (p: string): string => {
+    switch (p) {
+      case "openai": return "Starts with sk- — get yours at platform.openai.com";
+      case "anthropic": return "Starts with sk-ant- — get yours at console.anthropic.com";
+      case "google": return "Get a free key at aistudio.google.com";
+      case "grok": return "Starts with xai- — get yours at console.x.ai";
+      default: return "";
+    }
+  };
+
+  const validateKeyLocally = (p: string, key: string): string | null => {
+    const k = key.trim();
+    if (!k) return "Paste your API key above.";
+    if (k.includes("@")) return "That looks like an email, not an API key.";
+    if (k.startsWith("http")) return "That looks like a URL, not an API key.";
+    if (k.length < 10) return "That's too short — API keys are usually 30+ characters.";
+    if (p === "openai" && !k.startsWith("sk-")) return "OpenAI keys start with \"sk-\". Double-check what you pasted.";
+    if (p === "anthropic" && !k.startsWith("sk-ant-")) return "Anthropic keys start with \"sk-ant-\". Double-check what you pasted.";
+    if (p === "grok" && !k.startsWith("xai-")) return "Grok keys start with \"xai-\". Double-check what you pasted.";
+    if (p === "google" && k.startsWith("sk-")) return "That looks like an OpenAI key. Switch the dropdown to OpenAI, or get a Google key from aistudio.google.com.";
+    return null;
+  };
+
   const saveApiKey = async () => {
-    if (!apiKey.trim()) {
-      setSetupError("Enter your API key");
+    const trimmedKey = apiKey.trim();
+
+    // Client-side validation first (instant feedback)
+    const localErr = validateKeyLocally(provider, trimmedKey);
+    if (localErr) {
+      setSetupError(localErr);
       return;
     }
+
     setSetupError("");
     try {
       const res = await fetch("/api/stores/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store_id: storeId, llm_provider: provider, llm_api_key: apiKey.trim() }),
+        body: JSON.stringify({ store_id: storeId, llm_provider: provider, llm_api_key: trimmedKey }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to save");
+        throw new Error(data.error || "Something went wrong. Try again.");
       }
       setHasKey(true);
       setShowSetup(false);
+      setApiKey(""); // Clear from memory — it's saved server-side now
     } catch (e: unknown) {
-      setSetupError(e instanceof Error ? e.message : "Failed to save");
+      setSetupError(e instanceof Error ? e.message : "Something went wrong. Try again.");
     }
   };
 
@@ -189,8 +219,8 @@ export default function StoreBuilder({
         });
       }
     } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : "Something went wrong";
-      setMessages([...newMessages, { role: "assistant", content: `❌ Error: ${errMsg}` }]);
+      const errMsg = e instanceof Error ? e.message : "Something went wrong. Try again.";
+      setMessages([...newMessages, { role: "assistant", content: `❌ ${errMsg}` }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -272,7 +302,10 @@ export default function StoreBuilder({
                 style={inputStyle}
               />
               <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                The Mall passes your messages to your LLM and shows the result. We don&apos;t read or share your key.
+                {getKeyHint(provider)}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                Your key stays between you and your provider. We encrypt it and never share it.
               </p>
             </div>
 

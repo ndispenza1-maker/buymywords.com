@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getSQL } from "@/lib/db";
-import { setAuthCookie } from "@/lib/auth";
+import { createToken } from "@/lib/auth";
 import { redeemCode } from "@/lib/founders";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 
-function getRedirectUri(request: NextRequest) {
-  const proto = request.headers.get("x-forwarded-proto") || "https";
-  const host = request.headers.get("host") || "themallofprojects.com";
-  return `${proto}://${host}/api/auth/google/callback`;
-}
+const REDIRECT_URI = "https://themallofprojects.com/api/auth/google/callback";
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -27,10 +23,35 @@ interface GoogleUserInfo {
   picture?: string;
 }
 
+/**
+ * Return an HTML page that sets the auth cookie and navigates to the destination.
+ * This avoids the unreliable Set-Cookie-on-redirect behavior in Next.js/Vercel.
+ */
+function authAndNavigate(userId: string, destination: string): NextResponse {
+  const token = createToken(userId);
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="1;url=${destination}">
+<style>body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1412;color:#e8ddd3;font-family:system-ui;}</style>
+</head><body><p>Signing you in…</p>
+<script>window.location.replace("${destination}");</script>
+</body></html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Set-Cookie": `auth_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`,
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const stateParam = url.searchParams.get("state");
   const error = url.searchParams.get("error");
 
   // User cancelled or error from Google
@@ -38,22 +59,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/signup?error=google_cancelled", request.url));
   }
 
-  if (!code || !state) {
+  if (!code || !stateParam) {
     return NextResponse.redirect(new URL("/signup?error=google_invalid", request.url));
   }
+
+  // Parse state: "csrfToken" or "csrfToken:foundersCode"
+  const stateParts = stateParam.split(":");
+  const csrfState = stateParts[0];
+  const foundersCodeFromState = stateParts.length > 1 ? stateParts.slice(1).join(":") : null;
 
   // Verify CSRF state
   const cookieStore = await cookies();
   const savedState = cookieStore.get("google_oauth_state")?.value;
-  cookieStore.set("google_oauth_state", "", { maxAge: 0, path: "/" });
 
-  if (!savedState || savedState !== state) {
+  if (!savedState || savedState !== csrfState) {
     return NextResponse.redirect(new URL("/signup?error=google_state_mismatch", request.url));
   }
 
   try {
     // Exchange code for tokens
-    const redirectUri = getRedirectUri(request);
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -61,7 +85,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: redirectUri,
+        redirect_uri: REDIRECT_URI,
         grant_type: "authorization_code",
       }),
     });
@@ -91,32 +115,45 @@ export async function GET(request: NextRequest) {
 
     const sql = getSQL();
 
-    // Check if user exists by google_id
+    // Helper: try to redeem founders code for any user (new or existing)
+    async function tryRedeemFounders(userId: string): Promise<string> {
+      if (!foundersCodeFromState) return "/";
+      // Check if user already has active subscription
+      const userCheck = await sql`
+        SELECT subscription_status FROM users WHERE id = ${userId} LIMIT 1
+      `;
+      if (userCheck.length > 0 && userCheck[0].subscription_status === 'active') {
+        return "/"; // Already has access, skip
+      }
+      const foundersResult = await redeemCode(foundersCodeFromState, userId);
+      if (foundersResult.ok) {
+        return "/build-profile";
+      }
+      return "/";
+    }
+
+    // Check if user exists by google_id — log them in
     let rows = await sql`
       SELECT id FROM users WHERE google_id = ${googleUser.sub} LIMIT 1
     `;
-
     if (rows.length > 0) {
-      // Existing Google user — log them in
-      await setAuthCookie(rows[0].id as string);
-      return NextResponse.redirect(new URL("/feed", request.url));
+      const dest = await tryRedeemFounders(rows[0].id as string);
+      return authAndNavigate(rows[0].id as string, dest);
     }
 
-    // Check if email already exists (email/password account)
+    // Check if email already exists (email/password account) — link Google
     rows = await sql`
       SELECT id, auth_provider FROM users WHERE email = ${googleUser.email} LIMIT 1
     `;
-
     if (rows.length > 0) {
-      // Link Google to existing email account
       await sql`
         UPDATE users
         SET google_id = ${googleUser.sub},
             auth_provider = CASE WHEN auth_provider = 'email' THEN 'email' ELSE auth_provider END
         WHERE id = ${rows[0].id}
       `;
-      await setAuthCookie(rows[0].id as string);
-      return NextResponse.redirect(new URL("/feed", request.url));
+      const dest = await tryRedeemFounders(rows[0].id as string);
+      return authAndNavigate(rows[0].id as string, dest);
     }
 
     // New user — create account
@@ -134,19 +171,9 @@ export async function GET(request: NextRequest) {
     `;
 
     const newUserId = newRows[0].id as string;
-    await setAuthCookie(newUserId);
+    const destination = await tryRedeemFounders(newUserId);
 
-    // Check for founders code in cookie (set before Google redirect)
-    const foundersCode = cookieStore.get("founders_code")?.value;
-    if (foundersCode) {
-      cookieStore.set("founders_code", "", { maxAge: 0, path: "/" });
-      const foundersResult = await redeemCode(foundersCode, newUserId);
-      if (foundersResult.ok) {
-        return NextResponse.redirect(new URL("/build-profile", request.url));
-      }
-    }
-
-    return NextResponse.redirect(new URL("/feed", request.url));
+    return authAndNavigate(newUserId, destination);
 
   } catch (err) {
     console.error("Google OAuth callback error:", err);

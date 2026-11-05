@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, isEncryptionAvailable } from "@/lib/crypto";
+import { validateKeyFormat } from "@/lib/llm-errors";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -48,7 +49,32 @@ export async function POST(req: NextRequest) {
   try {
     // Build dynamic update
     if (llm_provider !== undefined && llm_api_key !== undefined) {
-      await sql`UPDATE stores SET llm_provider = ${llm_provider}, llm_api_key = ${llm_api_key ? encrypt(llm_api_key) : null} WHERE id = ${store_id}`;
+      // Trim the key — pasted keys often have trailing whitespace/newlines
+      const cleanKey = llm_api_key ? llm_api_key.trim() : null;
+
+      // Validate key format before saving
+      if (cleanKey) {
+        const validProviders = ["openai", "anthropic", "google", "grok"];
+        if (!validProviders.includes(llm_provider)) {
+          return NextResponse.json({ error: "Pick a provider from the dropdown." }, { status: 400 });
+        }
+
+        const formatError = validateKeyFormat(llm_provider, cleanKey);
+        if (formatError) {
+          return NextResponse.json({ error: formatError }, { status: 400 });
+        }
+
+        // Check encryption is available before accepting the key
+        if (!isEncryptionAvailable()) {
+          console.error("ENCRYPTION_KEY is not configured — cannot save API keys");
+          return NextResponse.json(
+            { error: "Store setup is temporarily unavailable. Please try again later." },
+            { status: 503 }
+          );
+        }
+      }
+
+      await sql`UPDATE stores SET llm_provider = ${llm_provider}, llm_api_key = ${cleanKey ? encrypt(cleanKey) : null} WHERE id = ${store_id}`;
     }
 
     if (store_content !== undefined) {
@@ -62,6 +88,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     console.error("Store update failed:", e);
-    return NextResponse.json({ error: "Failed to update store" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : "";
+    // Surface specific known errors; generic fallback for everything else
+    if (msg.includes("ENCRYPTION_KEY")) {
+      return NextResponse.json(
+        { error: "Store setup is temporarily unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: "Something went wrong saving your changes. Try again." }, { status: 500 });
   }
 }

@@ -76,6 +76,12 @@ function LoginContent() {
         >
           <h2 className="text-xl font-bold text-center mb-2">Welcome back</h2>
 
+          {error && (
+              <p className="text-sm text-center" style={{ color: "#E85D27" }}>
+                {error}
+              </p>
+            )}
+
           {/* Google Sign-In Button */}
           <button
             type="button"
@@ -127,12 +133,6 @@ function LoginContent() {
                 style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
               />
             </div>
-
-            {error && (
-              <p className="text-sm text-center" style={{ color: "#E85D27" }}>
-                {error}
-              </p>
-            )}
 
             <button
               type="submit"
