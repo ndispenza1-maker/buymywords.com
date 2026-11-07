@@ -178,7 +178,7 @@ export default function BuildStoreWizard() {
                       Blank store page + AI assistant to help you build
                     </p>
                     <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
-                      $39.99/mo · Assistant included
+                      $29.99/mo · Assistant included
                     </p>
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export default function BuildStoreWizard() {
                       <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Start Fresh + Assistant</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>AI assistant helps you build your store</p>
                     </div>
-                    <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$39.99<span className="text-xs font-normal">/mo</span></p>
+                    <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$29.99<span className="text-xs font-normal">/mo</span></p>
                   </div>
                 </button>
               ) : (

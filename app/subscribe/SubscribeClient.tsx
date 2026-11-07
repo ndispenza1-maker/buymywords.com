@@ -184,7 +184,7 @@ export default function SubscribeClient() {
                 </p>
               </div>
               <p className="text-lg font-bold" style={{ color: "var(--text-inverse)" }}>
-                $39.99<span className="text-xs font-normal">/mo</span>
+                $29.99<span className="text-xs font-normal">/mo</span>
               </p>
             </div>
           </button>
