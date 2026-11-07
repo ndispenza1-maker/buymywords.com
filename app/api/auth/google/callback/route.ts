@@ -116,20 +116,27 @@ export async function GET(request: NextRequest) {
     const sql = getSQL();
 
     // Helper: try to redeem founders code for any user (new or existing)
+    // Wrapped in try/catch so a redemption failure never kills the OAuth flow
     async function tryRedeemFounders(userId: string): Promise<string> {
       if (!foundersCodeFromState) return "/";
-      // Check if user already has active subscription
-      const userCheck = await sql`
-        SELECT subscription_status FROM users WHERE id = ${userId} LIMIT 1
-      `;
-      if (userCheck.length > 0 && userCheck[0].subscription_status === 'active') {
-        return "/"; // Already has access, skip
+      try {
+        // Check if user already has active subscription
+        const userCheck = await sql`
+          SELECT subscription_status FROM users WHERE id = ${userId} LIMIT 1
+        `;
+        if (userCheck.length > 0 && userCheck[0].subscription_status === 'active') {
+          return "/"; // Already has access, skip
+        }
+        const foundersResult = await redeemCode(foundersCodeFromState, userId);
+        if (foundersResult.ok) {
+          return "/build-profile";
+        }
+        console.error("Founders redemption failed:", foundersResult.error);
+        return "/";
+      } catch (err) {
+        console.error("Founders redemption exception:", err);
+        return "/"; // Still log them in — don't blow up the whole OAuth
       }
-      const foundersResult = await redeemCode(foundersCodeFromState, userId);
-      if (foundersResult.ok) {
-        return "/build-profile";
-      }
-      return "/";
     }
 
     // Check if user exists by google_id — log them in
