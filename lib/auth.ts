@@ -45,6 +45,7 @@ export async function setAuthCookie(userId: string) {
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",
+    domain: process.env.NODE_ENV === "production" ? ".themallofprojects.com" : undefined,
   });
 }
 
@@ -68,5 +69,5 @@ export async function getAuthUser(): Promise<User | null> {
 
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
-  cookieStore.set("auth_token", "", { maxAge: 0, path: "/" });
+  cookieStore.set("auth_token", "", { maxAge: 0, path: "/", domain: process.env.NODE_ENV === "production" ? ".themallofprojects.com" : undefined });
 }

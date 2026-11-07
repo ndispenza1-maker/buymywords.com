@@ -43,7 +43,7 @@ function authAndNavigate(userId: string, destination: string): NextResponse {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Set-Cookie": `auth_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`,
+      "Set-Cookie": `auth_token=${token}; Path=/; Domain=.themallofprojects.com; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`,
     },
   });
 }

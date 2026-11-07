@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     sameSite: "lax",
     maxAge: 600,
     path: "/",
+    domain: ".themallofprojects.com",
   });
 
   return response;
