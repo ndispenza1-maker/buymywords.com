@@ -87,25 +87,8 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
             pointerEvents: "none",
           }}
         >
-          <a
-            href="/"
-            style={{
-              pointerEvents: "auto",
-              padding: "0.45rem 1rem",
-              borderRadius: "8px",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.75)",
-              background: "rgba(0,0,0,0.25)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              textDecoration: "none",
-              transition: "background 0.2s, color 0.2s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; e.currentTarget.style.color = "rgba(255,255,255,0.95)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
-          >
+          <style dangerouslySetInnerHTML={{ __html: `.back-to-mall{pointer-events:auto;padding:0.45rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.25);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);text-decoration:none;transition:background 0.2s,color 0.2s}.back-to-mall:hover{background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95)}` }} />
+          <a href="/" className="back-to-mall">
             ← Back to Mall
           </a>
         </div>
