@@ -92,18 +92,28 @@ export async function POST(req: NextRequest) {
   // Decrypt stored API key
   const apiKey = decryptOrPassthrough(store.llm_api_key as string);
 
-  // Build context-aware system prompt
-  const contextPrompt = `${SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}`;
+  // Fetch current store content to include in context
+  const storeContentRows = await sql`SELECT store_content FROM stores WHERE id = ${store_id}`;
+  const currentPage = (storeContentRows[0]?.store_content as string) || "";
+
+  // Build context-aware system prompt — include current page so AI always has the latest
+  const pageContext = currentPage
+    ? `\n\nCURRENT PAGE HTML (this is what the visitor sees right now — modify this when the user asks for changes):\n\`\`\`html\n${currentPage}\n\`\`\``
+    : "\n\nThe store page is currently blank. Build the first version.";
+  const contextPrompt = `${SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}${pageContext}`;
+
+  // Only send last 6 messages to avoid context bloat — the current page is in the system prompt
+  const recentMessages = messages.slice(-6);
 
   try {
     if (store.llm_provider === "openai") {
-      return await callOpenAI(apiKey, contextPrompt, messages);
+      return await callOpenAI(apiKey, contextPrompt, recentMessages);
     } else if (store.llm_provider === "anthropic") {
-      return await callAnthropic(apiKey, contextPrompt, messages);
+      return await callAnthropic(apiKey, contextPrompt, recentMessages);
     } else if (store.llm_provider === "google") {
-      return await callGoogle(apiKey, contextPrompt, messages);
+      return await callGoogle(apiKey, contextPrompt, recentMessages);
     } else if (store.llm_provider === "grok") {
-      return await callGrok(apiKey, contextPrompt, messages);
+      return await callGrok(apiKey, contextPrompt, recentMessages);
     } else {
       return NextResponse.json({ error: "Pick a provider in ⚙️ settings first." }, { status: 400 });
     }
