@@ -8,6 +8,12 @@ export async function GET(
 ) {
   const currentUser = await getAuthUser();
   const { id: userId } = await params;
+
+  // Validate UUID format
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const sql = getSQL();
 
   const users = await sql`

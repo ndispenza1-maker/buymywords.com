@@ -7,6 +7,12 @@ import MallAssistant from "@/components/MallAssistant";
 
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Validate UUID format to avoid Postgres errors on bad input
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    notFound();
+  }
+
   const user = await getAuthUser();
   const sql = getSQL();
 

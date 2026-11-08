@@ -166,6 +166,14 @@ export default function StoreBuilder({
       if (startIdx >= 0) { html = content.substring(startIdx).trim(); }
     }
 
+    // Strip anything after </html> (LLM explanatory text)
+    if (html) {
+      const closeIdx = html.lastIndexOf("</html>");
+      if (closeIdx >= 0) {
+        html = html.substring(0, closeIdx + "</html>".length);
+      }
+    }
+
     // Sanitize before returning
     return html ? sanitizeHTML(html) : "";
   };
