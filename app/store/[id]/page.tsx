@@ -27,15 +27,14 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <NavBar user={user ? {
-        id: user.id,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
-        profile_complete: user.profile_complete,
-      } : null} />
-
       {isOwner ? (
         <>
+          <NavBar user={user ? {
+            id: user.id,
+            display_name: user.display_name,
+            avatar_url: user.avatar_url,
+            profile_complete: user.profile_complete,
+          } : null} />
           <StoreBuilder
             storeId={store.id}
             storeName={store.store_name}
@@ -56,9 +55,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
           )}
         </>
       ) : (
-        <StoreVisitorView
-          store={store}
-        />
+        <StoreVisitorView store={store} />
       )}
     </>
   );
@@ -73,10 +70,45 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
   const displayName = store.display_name as string;
   const avatarUrl = store.avatar_url as string | null;
 
-  // If there's published HTML content, show it in an iframe
+  // If there's published HTML content, show it full-screen with a subtle "Back to Mall" button
   if (storeContent) {
     return (
-      <main className="w-full" style={{ height: "calc(100vh - 56px)" }}>
+      <main className="w-full relative" style={{ height: "100vh" }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            padding: "0.75rem 1.25rem",
+            display: "flex",
+            justifyContent: "flex-end",
+            pointerEvents: "none",
+          }}
+        >
+          <a
+            href="/"
+            style={{
+              pointerEvents: "auto",
+              padding: "0.45rem 1rem",
+              borderRadius: "8px",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.75)",
+              background: "rgba(0,0,0,0.25)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              textDecoration: "none",
+              transition: "background 0.2s, color 0.2s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; e.currentTarget.style.color = "rgba(255,255,255,0.95)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
+          >
+            ← Back to Mall
+          </a>
+        </div>
         <iframe
           srcDoc={storeContent}
           sandbox="allow-scripts allow-forms allow-popups"
