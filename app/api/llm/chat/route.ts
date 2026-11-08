@@ -175,7 +175,7 @@ async function callOpenAI(apiKey: string, systemPrompt: string, messages: Array<
         { role: "system", content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 8000,
+      max_tokens: 16000,
     }),
   });
 
@@ -201,7 +201,7 @@ async function callAnthropic(apiKey: string, systemPrompt: string, messages: Arr
     },
     body: JSON.stringify({
       model: "claude-haiku-5-5",  // Current as of Oct 2026
-      max_tokens: 8000,
+      max_tokens: 16000,
       system: systemPrompt,
       messages: messages.map(m => ({
         role: m.role === "system" ? "user" : m.role,
@@ -246,7 +246,7 @@ async function callGoogle(apiKey: string, systemPrompt: string, messages: Array<
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 8000 },
+        generationConfig: { maxOutputTokens: 16000 },
       }),
     }
   );
@@ -274,7 +274,7 @@ async function callGrok(apiKey: string, systemPrompt: string, messages: Array<{ 
         { role: "system", content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 8000,
+      max_tokens: 16000,
     }),
   });
 

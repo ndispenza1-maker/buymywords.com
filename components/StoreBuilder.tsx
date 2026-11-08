@@ -200,17 +200,29 @@ export default function StoreBuilder({
       // Extract and preview HTML
       const html = extractHTML(data.content);
       if (html) {
-        setPreview(html);
-        setPublished(true);
-        setSaveMsg("✅ Published!");
-        setTimeout(() => setSaveMsg(""), 3000);
+        // Safety check: don't save truncated HTML that's missing closing tags
+        const isTruncated = html.includes("<html") && !html.includes("</html");
+        if (isTruncated) {
+          setMessages([...updatedMessages, { role: "assistant", content: "⚠️ The AI's response was cut off before it finished. Your current page was NOT overwritten. Try asking again with a simpler request, or ask it to make smaller changes." }]);
+          // Save chat history only — do NOT overwrite store_content
+          fetch("/api/stores/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ store_id: storeId, chat_history: updatedMessages }),
+          });
+        } else {
+          setPreview(html);
+          setPublished(true);
+          setSaveMsg("✅ Published!");
+          setTimeout(() => setSaveMsg(""), 3000);
 
-        // Auto-publish: save content + chat history together
-        fetch("/api/stores/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ store_id: storeId, store_content: html, chat_history: updatedMessages }),
-        });
+          // Auto-publish: save content + chat history together
+          fetch("/api/stores/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ store_id: storeId, store_content: html, chat_history: updatedMessages }),
+          });
+        }
       } else {
         // Save chat history only (conversational response, no HTML)
         fetch("/api/stores/update", {
