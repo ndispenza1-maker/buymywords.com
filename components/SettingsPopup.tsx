@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface SettingsProps {
   onClose: () => void;
@@ -18,20 +18,37 @@ function IDCardPanel({
   userId,
   avatarUrl: initialAvatar,
   bio: initialBio,
-  displayName,
+  displayName: initialName,
 }: {
   userId: string;
   avatarUrl: string | null;
   bio: string | null;
   displayName: string;
 }) {
+  const [name, setName] = useState(initialName);
   const [bio, setBio] = useState(initialBio || "");
   const [avatarUrl, setAvatarUrl] = useState(initialAvatar);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
-  const [dirty, setDirty] = useState(false);
+  const [dirtyBio, setDirtyBio] = useState(false);
+  const [dirtyName, setDirtyName] = useState(false);
+  const [canChangeName, setCanChangeName] = useState(true);
+  const [nameChangeDaysLeft, setNameChangeDaysLeft] = useState(0);
+  const [loadingNameStatus, setLoadingNameStatus] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load name change eligibility on mount
+  useEffect(() => {
+    fetch("/api/profile")
+      .then(r => r.json())
+      .then(data => {
+        setCanChangeName(data.canChangeName);
+        setNameChangeDaysLeft(data.nameChangeDaysLeft || 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingNameStatus(false));
+  }, []);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,18 +87,35 @@ function IDCardPanel({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const handleSaveBio = async () => {
+  const handleSave = async () => {
     setSaving(true);
     setSaveMsg("");
+
+    const payload: Record<string, string> = {};
+    if (dirtyBio) payload.bio = bio.trim();
+    if (dirtyName && name.trim() !== initialName) payload.display_name = name.trim();
+
+    if (Object.keys(payload).length === 0) {
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bio: bio.trim() }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
+        const data = await res.json();
         setSaveMsg("✅ Saved!");
-        setDirty(false);
+        setDirtyBio(false);
+        setDirtyName(false);
+        // If name was changed, update cooldown state
+        if (data.updated?.includes("display_name")) {
+          setCanChangeName(false);
+          setNameChangeDaysLeft(180);
+        }
         setTimeout(() => setSaveMsg(""), 3000);
       } else {
         const data = await res.json().catch(() => ({}));
@@ -92,6 +126,8 @@ function IDCardPanel({
     }
     setSaving(false);
   };
+
+  const isDirty = dirtyBio || (dirtyName && name.trim() !== initialName);
 
   return (
     <div className="space-y-5">
@@ -126,11 +162,11 @@ function IDCardPanel({
                 border: "2px solid var(--sunset-dusk, #6b5e55)",
               }}
             >
-              {!avatarUrl && displayName[0]?.toUpperCase()}
+              {!avatarUrl && (name.trim() || initialName)[0]?.toUpperCase()}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold truncate" style={{ color: "#fff" }}>
-                {displayName}
+                {name.trim() || initialName}
               </p>
               <p className="text-[10px]" style={{ color: "var(--sunset-mauve, #c4b5a5)" }}>
                 {bio.trim() || "No about yet"}
@@ -156,7 +192,7 @@ function IDCardPanel({
               border: "2px solid var(--border)",
             }}
           >
-            {!avatarUrl && displayName[0]?.toUpperCase()}
+            {!avatarUrl && (name.trim() || initialName)[0]?.toUpperCase()}
           </div>
           <div className="flex-1">
             <button
@@ -181,6 +217,42 @@ function IDCardPanel({
         </div>
       </div>
 
+      {/* ── Display Name ── */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+            Name
+          </label>
+          {!loadingNameStatus && !canChangeName && (
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              🔒 Locked · {nameChangeDaysLeft}d left
+            </span>
+          )}
+          {!loadingNameStatus && canChangeName && (
+            <span className="text-[10px]" style={{ color: "#4CAF50" }}>
+              ✓ Change available
+            </span>
+          )}
+        </div>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setDirtyName(true); }}
+          disabled={!canChangeName}
+          maxLength={50}
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-50"
+          style={{
+            border: "1px solid var(--border)",
+            background: canChangeName ? "var(--bg)" : "var(--bg-card)",
+          }}
+        />
+        <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+          {canChangeName
+            ? "One free change, then 6 months between changes."
+            : `Next change available in ${nameChangeDaysLeft} days.`}
+        </p>
+      </div>
+
       {/* ── About / Bio ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -193,7 +265,7 @@ function IDCardPanel({
         </div>
         <textarea
           value={bio}
-          onChange={(e) => { setBio(e.target.value); setDirty(true); }}
+          onChange={(e) => { setBio(e.target.value); setDirtyBio(true); }}
           placeholder="Tell people about yourself..."
           rows={3}
           maxLength={300}
@@ -213,9 +285,9 @@ function IDCardPanel({
         </p>
       )}
 
-      {dirty && (
+      {isDirty && (
         <button
-          onClick={handleSaveBio}
+          onClick={handleSave}
           disabled={saving}
           className="w-full py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
           style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
