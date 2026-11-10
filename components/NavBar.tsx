@@ -10,6 +10,7 @@ interface NavUser {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  bio?: string | null;
   profile_complete: boolean;
   account_type?: string | null;
   subscription_status?: string | null;
@@ -169,6 +170,10 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                 accountType={user.account_type || null}
                 subscriptionStatus={user.subscription_status || null}
                 subscriptionTier={user.subscription_tier || null}
+                userId={user.id}
+                avatarUrl={user.avatar_url || null}
+                bio={user.bio || null}
+                displayName={user.display_name}
               />
             )}
           </>

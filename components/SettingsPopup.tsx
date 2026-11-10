@@ -1,14 +1,233 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface SettingsProps {
   onClose: () => void;
   accountType: string | null;
   subscriptionStatus: string | null;
   subscriptionTier: string | null;
+  userId: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  displayName: string;
 }
 
+// ── ID Card Editor Tab ──
+function IDCardPanel({
+  userId,
+  avatarUrl: initialAvatar,
+  bio: initialBio,
+  displayName,
+}: {
+  userId: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  displayName: string;
+}) {
+  const [bio, setBio] = useState(initialBio || "");
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatar);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setSaveMsg("❌ File must be an image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveMsg("❌ Image must be under 5 MB");
+      return;
+    }
+
+    setUploading(true);
+    setSaveMsg("");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload/avatar", { method: "POST", body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setAvatarUrl(data.avatar_url);
+        setSaveMsg("✅ Photo updated!");
+        setTimeout(() => setSaveMsg(""), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSaveMsg(`❌ ${data.error || "Upload failed"}`);
+      }
+    } catch {
+      setSaveMsg("❌ Upload failed");
+    }
+    setUploading(false);
+    // Clear file input so same file can be re-selected
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleSaveBio = async () => {
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bio: bio.trim() }),
+      });
+      if (res.ok) {
+        setSaveMsg("✅ Saved!");
+        setDirty(false);
+        setTimeout(() => setSaveMsg(""), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSaveMsg(`❌ ${data.error || "Save failed"}`);
+      }
+    } catch {
+      setSaveMsg("❌ Save failed");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* ── ID Card Preview ── */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ background: "var(--sunset-night, #1a1412)" }}
+      >
+        {/* Mini mall header */}
+        <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--sunset-warm)" }} />
+            <p className="text-[8px] font-bold tracking-[0.2em] uppercase" style={{ color: "var(--sunset-mauve, #c4b5a5)" }}>
+              The Mall
+            </p>
+          </div>
+          <p className="text-[8px] tracking-wider" style={{ color: "var(--sunset-dusk, #6b5e55)" }}>
+            MEMBER ID
+          </p>
+        </div>
+
+        {/* Card body */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold shrink-0"
+              style={{
+                background: avatarUrl
+                  ? `url(${avatarUrl}) center/cover`
+                  : "linear-gradient(135deg, var(--sunset-warm), var(--sunset-peach))",
+                color: "var(--text-inverse, #fff)",
+                border: "2px solid var(--sunset-dusk, #6b5e55)",
+              }}
+            >
+              {!avatarUrl && displayName[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate" style={{ color: "#fff" }}>
+                {displayName}
+              </p>
+              <p className="text-[10px]" style={{ color: "var(--sunset-mauve, #c4b5a5)" }}>
+                {bio.trim() || "No about yet"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Photo Upload ── */}
+      <div>
+        <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>
+          Photo
+        </label>
+        <div className="flex items-center gap-3">
+          <div
+            className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold shrink-0"
+            style={{
+              background: avatarUrl
+                ? `url(${avatarUrl}) center/cover`
+                : "linear-gradient(135deg, var(--sunset-warm), var(--sunset-peach))",
+              color: "var(--text-inverse)",
+              border: "2px solid var(--border)",
+            }}
+          >
+            {!avatarUrl && displayName[0]?.toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 rounded-lg text-xs font-semibold border-none cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              {uploading ? "Uploading..." : avatarUrl ? "Change Photo" : "Upload Photo"}
+            </button>
+            <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+              JPG, PNG, or GIF · 5 MB max · Auto-crops to face
+            </p>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarUpload}
+          />
+        </div>
+      </div>
+
+      {/* ── About / Bio ── */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+            About
+          </label>
+          <span className="text-[10px]" style={{ color: bio.length > 280 ? "#E85D27" : "var(--text-muted)" }}>
+            {bio.length}/300
+          </span>
+        </div>
+        <textarea
+          value={bio}
+          onChange={(e) => { setBio(e.target.value); setDirty(true); }}
+          placeholder="Tell people about yourself..."
+          rows={3}
+          maxLength={300}
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--bg)",
+            fontFamily: "inherit",
+          }}
+        />
+      </div>
+
+      {/* ── Save + Status ── */}
+      {saveMsg && (
+        <p className="text-xs text-center" style={{ color: saveMsg.startsWith("✅") ? "#4CAF50" : "#E85D27" }}>
+          {saveMsg}
+        </p>
+      )}
+
+      {dirty && (
+        <button
+          onClick={handleSaveBio}
+          disabled={saving}
+          className="w-full py-2.5 rounded-xl text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
+          style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Subscription Panel (unchanged) ──
 function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }: {
   accountType: string | null;
   subscriptionStatus: string | null;
@@ -25,6 +244,7 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
     if (subscriptionTier === "shopper") return "Mall+ · $9.99/mo";
     if (subscriptionTier === "owner_basic") return "Store Owner";
     if (subscriptionTier === "owner_assistant") return "Store Owner · $29.99/mo";
+    if (subscriptionTier === "founders") return "Founders Access";
     if (isOwner) return "Store Owner (unpaid)";
     return "Free";
   })();
@@ -76,7 +296,7 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
       </div>
 
       {/* Manage existing */}
-      {isActive && (
+      {isActive && subscriptionTier !== "founders" && (
         <button
           onClick={handlePortal}
           disabled={portalLoading}
@@ -93,7 +313,6 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
       </p>
 
       <div className="space-y-2">
-        {/* Shopper options */}
         {accountType === "shopper" && (
           <>
             {subscriptionTier !== "shopper" && (
@@ -147,7 +366,6 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
           </>
         )}
 
-        {/* Store Owner plans */}
         {isOwner && (
           <>
             <button
@@ -198,7 +416,7 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Fresh + Assistant</p>
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>AI assistant included</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>AI builds your store</p>
                 </div>
                 <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$29.99/mo</p>
               </div>
@@ -210,8 +428,18 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
   );
 }
 
-export default function SettingsPopup({ onClose, accountType, subscriptionStatus, subscriptionTier }: SettingsProps) {
-  const [tab, setTab] = useState<"general" | "subscription">("general");
+// ── Main Settings Popup ──
+export default function SettingsPopup({
+  onClose,
+  accountType,
+  subscriptionStatus,
+  subscriptionTier,
+  userId,
+  avatarUrl,
+  bio,
+  displayName,
+}: SettingsProps) {
+  const [tab, setTab] = useState<"idcard" | "general" | "subscription">("idcard");
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -233,6 +461,12 @@ export default function SettingsPopup({ onClose, accountType, subscriptionStatus
     }
   };
 
+  const tabs: { key: typeof tab; label: string }[] = [
+    { key: "idcard", label: "ID Card" },
+    { key: "general", label: "General" },
+    { key: "subscription", label: "Plan" },
+  ];
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center px-4"
@@ -241,7 +475,7 @@ export default function SettingsPopup({ onClose, accountType, subscriptionStatus
     >
       <div
         className="w-full max-w-sm rounded-2xl overflow-hidden"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", maxHeight: "85vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -258,32 +492,33 @@ export default function SettingsPopup({ onClose, accountType, subscriptionStatus
 
         {/* Tabs */}
         <div className="flex px-5 pt-3 gap-1" style={{ borderBottom: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setTab("general")}
-            className="px-3 py-2 text-xs font-semibold border-none cursor-pointer rounded-t-lg"
-            style={{
-              background: tab === "general" ? "var(--bg)" : "transparent",
-              color: tab === "general" ? "var(--text)" : "var(--text-muted)",
-              borderBottom: tab === "general" ? "2px solid var(--accent)" : "2px solid transparent",
-            }}
-          >
-            General
-          </button>
-          <button
-            onClick={() => setTab("subscription")}
-            className="px-3 py-2 text-xs font-semibold border-none cursor-pointer rounded-t-lg"
-            style={{
-              background: tab === "subscription" ? "var(--bg)" : "transparent",
-              color: tab === "subscription" ? "var(--text)" : "var(--text-muted)",
-              borderBottom: tab === "subscription" ? "2px solid var(--accent)" : "2px solid transparent",
-            }}
-          >
-            Subscription
-          </button>
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="px-3 py-2 text-xs font-semibold border-none cursor-pointer rounded-t-lg"
+              style={{
+                background: tab === t.key ? "var(--bg)" : "transparent",
+                color: tab === t.key ? "var(--text)" : "var(--text-muted)",
+                borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {/* Body */}
-        <div className="px-5 py-4">
+        {/* Body — scrollable */}
+        <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight: "60vh" }}>
+          {tab === "idcard" && (
+            <IDCardPanel
+              userId={userId}
+              avatarUrl={avatarUrl}
+              bio={bio}
+              displayName={displayName}
+            />
+          )}
+
           {tab === "general" && (
             <div className="space-y-4">
               {/* Dark Mode */}

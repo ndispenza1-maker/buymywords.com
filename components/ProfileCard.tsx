@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 
 interface ProfileData {
@@ -41,13 +40,11 @@ export default function ProfileCard({
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [messageSending, setMessageSending] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
   const [showUpgradeHint, setShowUpgradeHint] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const msgInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -108,22 +105,6 @@ export default function ProfileCard({
           : p
       );
     }
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/upload/avatar", { method: "POST", body: formData });
-    if (res.ok) {
-      const data = await res.json();
-      setProfile((p) => (p ? { ...p, avatar_url: data.avatar_url } : p));
-    }
-    setUploading(false);
   };
 
   const typeLabel = (type: string | null) => {
@@ -204,31 +185,7 @@ export default function ProfileCard({
                   >
                     {!profile.avatar_url && profile.display_name[0]?.toUpperCase()}
                   </div>
-                  {/* Upload button — only on own card */}
-                  {profile.is_self && profileComplete && (
-                    <>
-                      <button
-                        onClick={() => fileRef.current?.click()}
-                        disabled={uploading}
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg flex items-center justify-center border-none cursor-pointer text-[10px]"
-                        style={{
-                          background: "var(--sunset-warm)",
-                          color: "var(--text-inverse)",
-                          border: "2px solid var(--sunset-night)",
-                        }}
-                        title="Change photo"
-                      >
-                        {uploading ? "…" : "📷"}
-                      </button>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarUpload}
-                      />
-                    </>
-                  )}
+
                 </div>
 
                 <div className="flex-1 min-w-0">

@@ -38,6 +38,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
             id: user.id,
             display_name: user.display_name,
             avatar_url: user.avatar_url,
+            bio: user.bio,
             profile_complete: user.profile_complete,
           } : null} />
           <StoreBuilder
