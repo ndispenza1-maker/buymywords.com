@@ -10,6 +10,7 @@ interface ProfileData {
   avatar_url: string | null;
   account_type: string | null;
   store_built: boolean;
+  store_name: string | null;
   store_external_url: string | null;
   store_type: string | null;
   follower_count: number;
@@ -107,7 +108,8 @@ export default function ProfileCard({
     }
   };
 
-  const typeLabel = (type: string | null) => {
+  const typeLabel = (type: string | null, storeName: string | null) => {
+    if (type === "store_owner" && storeName) return storeName.toUpperCase();
     if (type === "store_owner") return "STORE OWNER";
     return "SHOPPER";
   };
@@ -201,7 +203,7 @@ export default function ProfileCard({
                       className="text-[10px] font-semibold tracking-wider"
                       style={{ color: "var(--sunset-warm)" }}
                     >
-                      {typeLabel(profile.account_type)}
+                      {typeLabel(profile.account_type, profile.store_name)}
                     </span>
                   </div>
                 </div>

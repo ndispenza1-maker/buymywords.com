@@ -22,6 +22,8 @@ export interface User {
   store_built: boolean;
   subscription_status: string | null;
   subscription_tier: string | null;
+  store_name: string | null;
+  store_id: string | null;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -58,8 +60,11 @@ export async function getAuthUser(): Promise<User | null> {
     const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
     const sql = getSQL();
     const rows = await sql`
-      SELECT id, email, display_name, bio, avatar_url, cover_url, created_at, account_type, profile_complete, store_built, subscription_status, subscription_tier
-      FROM users WHERE id = ${decoded.userId}
+      SELECT u.id, u.email, u.display_name, u.bio, u.avatar_url, u.cover_url, u.created_at, u.account_type, u.profile_complete, u.store_built, u.subscription_status, u.subscription_tier,
+        s.store_name, s.id AS store_id
+      FROM users u
+      LEFT JOIN stores s ON s.user_id = u.id
+      WHERE u.id = ${decoded.userId}
     `;
     return (rows[0] as User) || null;
   } catch {

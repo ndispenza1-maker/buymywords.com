@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { store_id, store_content } = body;
+  const { store_id, store_content, store_name } = body;
 
   if (!store_id) {
     return NextResponse.json({ error: "store_id required" }, { status: 400 });
@@ -47,6 +47,14 @@ export async function POST(req: NextRequest) {
   try {
     if (store_content !== undefined) {
       await sql`UPDATE stores SET store_content = ${store_content} WHERE id = ${store_id}`;
+    }
+
+    if (store_name !== undefined) {
+      const name = typeof store_name === "string" ? store_name.trim().slice(0, 60) : "";
+      if (name.length < 1) {
+        return NextResponse.json({ error: "Store name can't be empty" }, { status: 400 });
+      }
+      await sql`UPDATE stores SET store_name = ${name} WHERE id = ${store_id}`;
     }
 
     return NextResponse.json({ ok: true });

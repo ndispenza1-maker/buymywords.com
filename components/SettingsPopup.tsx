@@ -11,6 +11,8 @@ interface SettingsProps {
   avatarUrl: string | null;
   bio: string | null;
   displayName: string;
+  storeName: string | null;
+  storeId: string | null;
 }
 
 // ── ID Card Editor Tab ──
@@ -19,14 +21,22 @@ function IDCardPanel({
   avatarUrl: initialAvatar,
   bio: initialBio,
   displayName: initialName,
+  storeName: initialStoreName,
+  storeId,
+  accountType,
 }: {
   userId: string;
   avatarUrl: string | null;
   bio: string | null;
   displayName: string;
+  storeName: string | null;
+  storeId: string | null;
+  accountType: string | null;
 }) {
   const [name, setName] = useState(initialName);
   const [bio, setBio] = useState(initialBio || "");
+  const [storeName, setStoreName] = useState(initialStoreName || "");
+  const [dirtyStoreName, setDirtyStoreName] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatar);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -91,43 +101,67 @@ function IDCardPanel({
     setSaving(true);
     setSaveMsg("");
 
-    const payload: Record<string, string> = {};
-    if (dirtyBio) payload.bio = bio.trim();
-    if (dirtyName && name.trim() !== initialName) payload.display_name = name.trim();
+    // Profile fields (name, bio)
+    const profilePayload: Record<string, string> = {};
+    if (dirtyBio) profilePayload.bio = bio.trim();
+    if (dirtyName && name.trim() !== initialName) profilePayload.display_name = name.trim();
 
-    if (Object.keys(payload).length === 0) {
+    const hasProfileChanges = Object.keys(profilePayload).length > 0;
+    const hasStoreNameChange = dirtyStoreName && storeName.trim() !== (initialStoreName || "") && storeId;
+
+    if (!hasProfileChanges && !hasStoreNameChange) {
       setSaving(false);
       return;
     }
 
     try {
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
+      // Save profile fields
+      if (hasProfileChanges) {
+        const res = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profilePayload),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setSaveMsg(`❌ ${data.error || "Save failed"}`);
+          setSaving(false);
+          return;
+        }
         const data = await res.json();
-        setSaveMsg("✅ Saved!");
         setDirtyBio(false);
         setDirtyName(false);
-        // If name was changed, update cooldown state
         if (data.updated?.includes("display_name")) {
           setCanChangeName(false);
           setNameChangeDaysLeft(180);
         }
-        setTimeout(() => setSaveMsg(""), 3000);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setSaveMsg(`❌ ${data.error || "Save failed"}`);
       }
+
+      // Save store name
+      if (hasStoreNameChange && storeId) {
+        const res = await fetch("/api/stores/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ store_id: storeId, store_name: storeName.trim() }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setSaveMsg(`❌ ${data.error || "Failed to update store name"}`);
+          setSaving(false);
+          return;
+        }
+        setDirtyStoreName(false);
+      }
+
+      setSaveMsg("✅ Saved!");
+      setTimeout(() => setSaveMsg(""), 3000);
     } catch {
       setSaveMsg("❌ Save failed");
     }
     setSaving(false);
   };
 
-  const isDirty = dirtyBio || (dirtyName && name.trim() !== initialName);
+  const isDirty = dirtyBio || (dirtyName && name.trim() !== initialName) || (dirtyStoreName && storeName.trim() !== (initialStoreName || ""));
 
   return (
     <div className="space-y-5">
@@ -168,9 +202,24 @@ function IDCardPanel({
               <p className="text-sm font-bold truncate" style={{ color: "#fff" }}>
                 {name.trim() || initialName}
               </p>
-              <p className="text-[10px]" style={{ color: "var(--sunset-mauve, #c4b5a5)" }}>
-                {bio.trim() || "No about yet"}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {accountType === "store_owner" && (
+                  <>
+                    <span className="text-[9px]">🏪</span>
+                    <span className="text-[9px] font-semibold tracking-wider" style={{ color: "var(--sunset-warm, #E89B6B)" }}>
+                      {(storeName.trim() || initialStoreName || "STORE OWNER").toUpperCase()}
+                    </span>
+                  </>
+                )}
+                {accountType === "shopper" && (
+                  <>
+                    <span className="text-[9px]">🛍️</span>
+                    <span className="text-[9px] font-semibold tracking-wider" style={{ color: "var(--sunset-warm, #E89B6B)" }}>
+                      SHOPPER
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -252,6 +301,30 @@ function IDCardPanel({
             : `Next change available in ${nameChangeDaysLeft} days.`}
         </p>
       </div>
+
+      {/* ── Store Name (store owners only) ── */}
+      {accountType === "store_owner" && storeId && (
+        <div>
+          <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>
+            Store Name
+          </label>
+          <input
+            type="text"
+            value={storeName}
+            onChange={(e) => { setStoreName(e.target.value); setDirtyStoreName(true); }}
+            placeholder="What's your store called?"
+            maxLength={60}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            style={{
+              border: "1px solid var(--border)",
+              background: "var(--bg)",
+            }}
+          />
+          <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+            Shown on your ID card and the Store Leaderboard.
+          </p>
+        </div>
+      )}
 
       {/* ── About / Bio ── */}
       <div>
@@ -510,6 +583,8 @@ export default function SettingsPopup({
   avatarUrl,
   bio,
   displayName,
+  storeName,
+  storeId,
 }: SettingsProps) {
   const [tab, setTab] = useState<"idcard" | "general" | "subscription">("idcard");
   const [darkMode, setDarkMode] = useState(false);
@@ -588,6 +663,9 @@ export default function SettingsPopup({
               avatarUrl={avatarUrl}
               bio={bio}
               displayName={displayName}
+              storeName={storeName}
+              storeId={storeId}
+              accountType={accountType}
             />
           )}
 

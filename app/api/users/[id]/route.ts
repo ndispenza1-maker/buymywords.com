@@ -18,7 +18,7 @@ export async function GET(
 
   const users = await sql`
     SELECT u.id, u.display_name, u.bio, u.avatar_url, u.cover_url, u.created_at, u.account_type, u.profile_complete, u.store_built,
-      s.external_url AS store_external_url, s.store_type
+      s.store_name, s.external_url AS store_external_url, s.store_type
     FROM users u
     LEFT JOIN stores s ON s.user_id = u.id
     WHERE u.id = ${userId}

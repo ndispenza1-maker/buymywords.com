@@ -11,6 +11,8 @@ interface NavUser {
   display_name: string;
   avatar_url: string | null;
   bio?: string | null;
+  store_name?: string | null;
+  store_id?: string | null;
   profile_complete: boolean;
   account_type?: string | null;
   subscription_status?: string | null;
@@ -174,6 +176,8 @@ export default function NavBar({ user }: { user: NavUser | null }) {
                 avatarUrl={user.avatar_url || null}
                 bio={user.bio || null}
                 displayName={user.display_name}
+                storeName={user.store_name || null}
+                storeId={user.store_id || null}
               />
             )}
           </>
