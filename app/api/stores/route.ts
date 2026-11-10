@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
-import { encrypt, isEncryptionAvailable } from "@/lib/crypto";
-import { validateKeyFormat } from "@/lib/llm-errors";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -31,7 +29,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const { store_name, store_description, store_type, external_url, llm_provider, llm_api_key, assistant_enabled } = body;
+  const { store_name, store_description, store_type, external_url } = body;
 
   if (!store_name || !store_type) {
     return NextResponse.json({ error: "Store name and type are required" }, { status: 400 });
@@ -45,8 +43,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "External URL is required for existing projects" }, { status: 400 });
   }
 
-
-
   const sql = getSQL();
 
   // Check user is a store owner
@@ -59,31 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Store already exists" }, { status: 409 });
   }
 
-  // If an API key is provided, validate format + encryption availability
-  let encryptedKey: string | null = null;
-  if (llm_api_key) {
-    const cleanKey = llm_api_key.trim();
-    if (llm_provider) {
-      const formatError = validateKeyFormat(llm_provider, cleanKey);
-      if (formatError) {
-        return NextResponse.json({ error: formatError }, { status: 400 });
-      }
-    }
-    if (!isEncryptionAvailable()) {
-      console.error("ENCRYPTION_KEY is not configured — cannot save API keys");
-      return NextResponse.json(
-        { error: "Store setup is temporarily unavailable. Please try again later." },
-        { status: 503 }
-      );
-    }
-    encryptedKey = encrypt(cleanKey);
-  }
-
-  // Create store
+  // Create store — Mall provides the AI, assistant always enabled for fresh stores
   try {
     const stores = await sql`
-      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, llm_provider, llm_api_key, assistant_enabled)
-      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${llm_provider || null}, ${encryptedKey}, ${!!assistant_enabled})
+      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled)
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${store_type === "fresh"})
       RETURNING id
     `;
 

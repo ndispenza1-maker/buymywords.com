@@ -29,12 +29,67 @@ interface GoogleUserInfo {
  */
 function authAndNavigate(userId: string, destination: string): NextResponse {
   const token = createToken(userId);
+  // Branded interstitial — avoids bare-bones pattern that triggers Google Safe Browsing
   const html = `<!DOCTYPE html>
-<html><head>
+<html lang="en"><head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="1;url=${destination}">
-<style>body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1412;color:#e8ddd3;font-family:system-ui;}</style>
-</head><body><p>Signing you in…</p>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Mall of Projects — Signing In</title>
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="refresh" content="2;url=${destination}">
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    background: #1a1412;
+    color: #e8ddd3;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #E89B6B;
+    margin-bottom: 1.5rem;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: #c4b5a5;
+  }
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #3a3230;
+    border-top-color: #E89B6B;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fallback {
+    margin-top: 2rem;
+    font-size: 0.8rem;
+    color: #6b5e55;
+  }
+  .fallback a {
+    color: #E89B6B;
+    text-decoration: underline;
+  }
+</style>
+</head><body>
+<div class="brand">The Mall of Projects</div>
+<div class="status">
+  <div class="spinner"></div>
+  <span>Signing you in…</span>
+</div>
+<div class="fallback">
+  Not redirected? <a href="${destination}">Click here to continue</a>
+</div>
 <script>window.location.replace("${destination}");</script>
 </body></html>`;
 

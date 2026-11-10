@@ -3,7 +3,6 @@ import { getSQL } from "@/lib/db";
 import NavBar from "@/components/NavBar";
 import { notFound } from "next/navigation";
 import StoreBuilder from "@/components/StoreBuilder";
-import MallAssistant from "@/components/MallAssistant";
 
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,17 +47,9 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
             storeType={store.store_type}
             externalUrl={store.external_url}
             storeContent={store.store_content}
-            llmProvider={store.llm_provider}
-            hasApiKey={!!store.llm_api_key}
-            chatHistory={store.chat_history || []}
+            chatHistory={store.assistant_chat_history || []}
             ownerName={store.display_name}
           />
-          {store.assistant_enabled && (
-            <MallAssistant
-              storeId={store.id}
-              storeName={store.store_name}
-            />
-          )}
         </>
       ) : (
         <StoreVisitorView store={store} />

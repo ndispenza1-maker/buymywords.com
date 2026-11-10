@@ -61,9 +61,6 @@ export default function SubscriptionSuccess() {
           store_description: storeDescription.trim() || null,
           store_type: storeType,
           external_url: storeType === "existing" ? externalUrl.trim() : null,
-          llm_provider: null,
-          llm_api_key: null,
-          assistant_enabled: storeType === "fresh",
         }),
       });
 

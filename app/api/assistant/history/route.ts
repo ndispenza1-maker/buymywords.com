@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const sql = getSQL();
   const stores = await sql`
     SELECT assistant_chat_history FROM stores
-    WHERE id = ${storeId} AND user_id = ${userId} AND assistant_enabled = true
+    WHERE id = ${storeId} AND user_id = ${userId}
   `;
 
   if (!stores[0]) {

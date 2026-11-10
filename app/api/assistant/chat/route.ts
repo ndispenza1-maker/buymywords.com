@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 
 // The Mall's own Claude API key — server-side only, never exposed
 const MALL_CLAUDE_KEY = process.env.MALL_CLAUDE_API_KEY;
-const ASSISTANT_MODEL = "claude-haiku-5-5";
+const BUILDER_MODEL = "claude-haiku-5-5";
 
 async function getAuthUserId(): Promise<string | null> {
   try {
@@ -25,71 +25,60 @@ async function getAuthUserId(): Promise<string | null> {
   }
 }
 
-const ASSISTANT_SYSTEM_PROMPT = `You are the Mall Assistant — a friendly, patient guide who helps new store owners set up their online store on The Mall of Projects.
+const SYSTEM_PROMPT = `You are the Mall Assistant — the friendly, smart AI that helps store owners build and manage their store page on The Mall of Projects.
+
+YOU ARE BOTH THE GUIDE AND THE BUILDER. You do everything: chat, advise, AND generate the actual store HTML.
 
 YOUR PERSONALITY:
 - Warm, encouraging, and patient. These are people who might be nervous about starting their first online store.
 - Direct and clear. No jargon. If you have to use a technical term, explain it in plain English.
-- Celebrate small wins. "Nice, you got your API key! That was the hardest part."
-- You're like a supportive friend who's helped a hundred people do this before.
+- Celebrate small wins. "Nice! Your page is live — check the preview."
 - Keep messages short and actionable. One step at a time. Never overwhelm.
 
-THE MALL STORE BUILDER — HOW IT ACTUALLY WORKS:
+HOW THE STORE BUILDER WORKS:
 The store page lives at themallofprojects.com/store/[user-id]. When the owner visits their store, they see:
-- A split-screen layout: LIVE PREVIEW on the left, CHAT PANEL on the right
-- The chat panel is where they talk to their AI to build their store page
-- Before they can chat, they need to connect an AI provider. When they first land, they see a "Connect Your AI" setup screen with:
-  • A dropdown to pick their provider (OpenAI, Anthropic, Google, Grok)
-  • A field to paste their API key
-  • A "Connect & Start Building" button
-- Once connected, they type prompts in the chat and their AI generates HTML that shows in the live preview
-- There's a small ⚙️ button in the top-right of the chat panel header to change their AI provider/key later
-- The store auto-publishes when the AI generates a page — visitors see the latest version immediately
+- A split-screen layout: LIVE PREVIEW on the left, CHAT PANEL (you) on the right
+- They talk to you in the chat. You can both guide them AND generate their store page.
+- When you generate HTML, it auto-publishes to the preview. Visitors see the latest version immediately.
 
-YOUR JOB:
-1. Help them get a FREE AI API key so they can use the Store Builder chat panel
-2. Walk them through connecting it on the "Connect Your AI" setup screen
-3. Help them figure out what to tell their AI to build their store page
-4. Guide them through connecting external services (Stripe for payments, Beehiiv for mailing lists, Resend for email, etc.)
-5. Answer any questions along the way
+WHEN TO GENERATE HTML:
+- When the user asks you to build, create, update, or change their store page
+- When you think a visual would help (e.g., "Let me build you a starting page")
+- On the very first conversation, PROACTIVELY offer to build a starter page based on their store name/description
 
-GETTING STARTED FLOW:
-Step 1: Get a free API key. Recommend in this order:
-  • Google AI Studio (aistudio.google.com) — completely free, generous limits, best for beginners. They click "Get API Key" → "Create API Key" → copy it.
-  • OpenAI (platform.openai.com) — has free trial credits
-  • Anthropic (console.anthropic.com) — has free trial credits
-  • Grok/xAI (console.x.ai) — has free tier
-  Walk them through the specific site step by step. If they share a screenshot, tell them exactly what to click.
+WHEN TO JUST CHAT:
+- When the user asks questions about how things work
+- When they want advice on pricing, layout, branding, copy
+- When they want help connecting external services (Stripe, etc.)
+- When they're describing what they want before you build it
 
-Step 2: Connect the key. Once they have a key:
-  - They should see the "Connect Your AI" screen on their store page
-  - Pick their provider from the dropdown
-  - Paste the API key
-  - Hit "Connect & Start Building"
-  - If they already connected before and want to change it, click the ⚙️ button in the chat panel header
+HTML GENERATION RULES:
+- Generate a COMPLETE, self-contained HTML page with inline CSS and inline JS
+- Use modern, clean, responsive design
+- Include the full <!DOCTYPE html> through </html>
+- All styles must be inline in a <style> tag, all scripts in a <script> tag
+- No external dependencies, CDNs, or imports — everything self-contained
+- When the user asks to modify something, output the FULL updated page, not just the changes
+- If the user mentions payment links (Stripe, PayPal, etc.), add them as regular <a> links/buttons
+- Keep it simple, clean, and fast-loading
+- Use a modern color palette unless the user specifies colors
+- Make text readable, spacing generous, buttons clear
 
-Step 3: Build the store. Once connected, guide them on what to type in the chat panel:
-  - Start simple: "Build me a landing page for [store name] with a hero section, about me, and a contact button"
-  - Then iterate: "Change the colors to blue and white" or "Add a section for my products"
-  - The preview updates live on the left side
+CRITICAL RULES FOR LINKS AND BUTTONS:
+- Add <base target="_blank"> inside the <head> tag — the page renders in a sandboxed iframe
+- For placeholder/coming-soon buttons, use <button onclick="alert('Coming Soon!')" ...> NOT <a href="/"> or <a href="#">
+- Never use href="/" or href="#" or any relative URL — these will break inside the iframe
+- Real external links (Stripe, PayPal, etc.) use full https:// URLs with target="_blank"
+- Placeholder links that aren't ready yet: use button elements, not anchor tags
 
-Step 4: Connect services. Walk them through adding real functionality:
-  - Stripe: Create account → make a Payment Link → tell their AI: "Add a buy button that links to [paste Stripe link]"
-  - Beehiiv: Create free account → get embed code → tell their AI: "Add an email signup form using this embed code: [paste]"
-  - Resend: For transactional emails if needed
+CONNECTING SERVICES (guide them step by step):
+- Stripe: Create account → make a Payment Link → tell you: "Add a buy button with this link: [paste Stripe link]"
+- Beehiiv: Create free account → get embed code → tell you: "Add an email signup using this: [paste code]"
+- Other services: help them figure out the integration
 
-IMPORTANT RULES:
-- You are NOT the Store Builder AI. You don't generate HTML or build the store page. Their connected AI does that in the chat panel.
-- You ARE the guide sitting alongside them, helping them navigate.
-- If they ask you to build their page, redirect them: "Type that into the chat panel on the right side of your store page — that's where your AI builds things! Try telling it: [suggest a prompt]"
-- Keep it conversational. One message, one action. Never dump a wall of instructions.
-- If they seem stuck or frustrated, slow down and simplify.
-- When they share a screenshot, be specific about what's on THEIR screen, not what you assume is there.
-- NEVER reference buttons, menus, or UI elements that you aren't sure exist. If you're not sure what they're looking at, ask them to describe it or share a screenshot.
-
-FIRST MESSAGE:
-When you first appear, introduce yourself briefly and get them started. Something like:
-"Hey! 👋 I'm your Mall Assistant. I'm here to help you set up your store — no experience needed. Let's start by getting you connected to a free AI that'll help build your store page. Have you used any AI tools before, or is this brand new for you?"`;
+FIRST INTERACTION:
+When there's no chat history yet, greet them warmly and offer to build a starter page:
+"Hey! 👋 I'm your Mall Assistant. I'll help you build your store page right here in this chat — no coding needed. Want me to put together a starter page for [store name]? Just tell me what you're selling and the vibe you want, and I'll build it."`;
 
 export async function POST(req: NextRequest) {
   const userId = await getAuthUserId();
@@ -116,9 +105,9 @@ export async function POST(req: NextRequest) {
 
   const sql = getSQL();
 
-  // Verify this user owns this store and has assistant enabled
+  // Verify this user owns this store
   const stores = await sql`
-    SELECT id, assistant_enabled, store_name, store_description
+    SELECT id, store_name, store_description, store_content
     FROM stores WHERE id = ${store_id} AND user_id = ${userId}
   `;
 
@@ -126,17 +115,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Store not found" }, { status: 404 });
   }
 
-  // H-3: Rate limit assistant chat — 30 requests per user per 15 minutes
+  // Rate limit: 30 requests per user per 15 minutes
   if (isRateLimited(`assistant:${userId}`, 30, 15 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests. Please wait a few minutes." }, { status: 429 });
   }
 
-  if (!stores[0].assistant_enabled) {
-    return NextResponse.json({ error: "Assistant not enabled for this store" }, { status: 403 });
-  }
-
   const store = stores[0];
-  const contextPrompt = `${ASSISTANT_SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}`;
+  const currentPage = (store.store_content as string) || "";
+
+  // Build context-aware system prompt
+  const pageContext = currentPage
+    ? `\n\nCURRENT PAGE HTML (this is what visitors see right now — modify this when the user asks for changes):\n\`\`\`html\n${currentPage}\n\`\`\``
+    : "\n\nThe store page is currently blank. When ready, build the first version.";
+
+  const contextPrompt = `${SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}${pageContext}`;
+
+  // Only send last 6 messages to avoid context bloat — the current page is in the system prompt
+  const recentMessages = messages.slice(-6);
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -147,10 +142,10 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: ASSISTANT_MODEL,
-        max_tokens: 1024,
+        model: BUILDER_MODEL,
+        max_tokens: 16000,
         system: contextPrompt,
-        messages: messages.map((m: { role: string; content: string }) => ({
+        messages: recentMessages.map((m: { role: string; content: string }) => ({
           role: m.role === "system" ? "user" : m.role,
           content: m.content,
         })),
@@ -159,8 +154,22 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("Assistant Claude error:", err);
-      throw new Error(`Assistant AI error: ${res.status}`);
+      console.error("Mall Assistant error:", err);
+
+      // Parse status for user-friendly error
+      if (res.status === 429) {
+        return NextResponse.json(
+          { error: "The AI is busy right now. Try again in a moment." },
+          { status: 429 }
+        );
+      }
+      if (res.status === 401) {
+        return NextResponse.json(
+          { error: "AI service configuration issue. Please contact support." },
+          { status: 503 }
+        );
+      }
+      throw new Error(`AI error: ${res.status}`);
     }
 
     const data = await res.json();
@@ -180,23 +189,89 @@ export async function POST(req: NextRequest) {
 
     await sql`
       INSERT INTO assistant_usage (store_id, user_id, input_tokens, output_tokens, model)
-      VALUES (${store_id}, ${userId}, ${inputTokens}, ${outputTokens}, ${ASSISTANT_MODEL})
+      VALUES (${store_id}, ${userId}, ${inputTokens}, ${outputTokens}, ${BUILDER_MODEL})
     `;
 
-    // Persist the full conversation so it survives page reloads and pop-outs
-    const updatedMessages = [...messages, { role: "assistant", content }];
-    await sql`
-      UPDATE stores SET assistant_chat_history = ${JSON.stringify(updatedMessages)}
-      WHERE id = ${store_id}
-    `;
+    // Check if the response contains HTML — auto-publish if so
+    const html = extractHTML(content);
+    if (html && !isTruncated(html)) {
+      // Save content + chat history together
+      const updatedMessages = [...messages, { role: "assistant", content }];
+      await sql`
+        UPDATE stores SET
+          store_content = ${html},
+          assistant_chat_history = ${JSON.stringify(updatedMessages)}
+        WHERE id = ${store_id}
+      `;
+    } else {
+      // Save chat history only
+      const updatedMessages = [...messages, { role: "assistant", content }];
+      await sql`
+        UPDATE stores SET assistant_chat_history = ${JSON.stringify(updatedMessages)}
+        WHERE id = ${store_id}
+      `;
+    }
 
     return NextResponse.json({
       content,
+      hasHTML: !!html,
+      truncated: html ? isTruncated(html) : false,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     });
   } catch (e: unknown) {
-    console.error("Assistant call failed:", e);
-    const msg = e instanceof Error ? e.message : "Assistant call failed";
+    console.error("Mall Assistant call failed:", e);
+    const msg = e instanceof Error ? e.message : "Something went wrong";
+
+    if (msg.includes("abort") || msg.includes("AbortError") || msg.includes("ETIMEDOUT")) {
+      return NextResponse.json(
+        { error: "The AI took too long. Try a shorter request, or try again in a moment." },
+        { status: 504 }
+      );
+    }
+
     return NextResponse.json({ error: msg }, { status: 502 });
   }
+}
+
+// Extract HTML from AI response
+function extractHTML(content: string): string {
+  let html = "";
+
+  // Try markdown code block (closed fence)
+  const htmlBlock = content.match(/```html?\s*\n([\s\S]*?)```/);
+  if (htmlBlock) { html = htmlBlock[1].trim(); }
+
+  // Handle unclosed code block
+  if (!html) {
+    const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
+    if (unclosed && unclosed[1].includes("<html")) { html = unclosed[1].trim(); }
+  }
+
+  // Find <!DOCTYPE or <html directly in content
+  if (!html) {
+    const docIdx = content.indexOf("<!DOCTYPE");
+    const htmlIdx = content.indexOf("<html");
+    const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
+    if (startIdx >= 0) { html = content.substring(startIdx).trim(); }
+  }
+
+  // Strip anything after </html>
+  if (html) {
+    const closeIdx = html.lastIndexOf("</html>");
+    if (closeIdx >= 0) {
+      html = html.substring(0, closeIdx + "</html>".length);
+    }
+  }
+
+  // Sanitize: inject <base target="_blank">
+  if (html && !html.includes('<base')) {
+    html = html.replace('<head>', '<head><base target="_blank">');
+  }
+
+  return html;
+}
+
+// Check if HTML was truncated mid-stream
+function isTruncated(html: string): boolean {
+  return html.includes("<html") && !html.includes("</html");
 }

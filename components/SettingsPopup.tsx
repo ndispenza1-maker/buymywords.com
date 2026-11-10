@@ -24,7 +24,7 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
     if (!isActive && !isOwner) return "Free";
     if (subscriptionTier === "shopper") return "Mall+ · $9.99/mo";
     if (subscriptionTier === "owner_basic") return "Store Owner";
-    if (subscriptionTier === "owner_assistant") return "Store + Assistant · $29.99/mo";
+    if (subscriptionTier === "owner_assistant") return "Store Owner · $29.99/mo";
     if (isOwner) return "Store Owner (unpaid)";
     return "Free";
   })();

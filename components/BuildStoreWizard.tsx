@@ -62,7 +62,6 @@ export default function BuildStoreWizard() {
       store_description: storeDescription.trim() || null,
       store_type: storeType,
       external_url: storeType === "existing" ? externalUrl.trim() : null,
-      assistant_enabled: storeType === "fresh", // Fresh always gets assistant
     };
     localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
 

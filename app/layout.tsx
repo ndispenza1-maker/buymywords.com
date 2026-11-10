@@ -5,6 +5,9 @@ import ThemeInit from "@/components/ThemeInit";
 export const metadata: Metadata = {
   title: "The Mall of Projects",
   description: "A clean social space with storefronts. Humans only. Build, sell, and grow.",
+  verification: {
+    google: "nVrGrWbSOQoOKFVpCEvuEiHgmPexRe954P7t8xVTE-4",
+  },
 };
 
 export default function RootLayout({
