@@ -1,56 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+
+interface PendingStore {
+  store_type: string;
+  store_name: string;
+  store_description: string | null;
+  external_url: string | null;
+}
 
 /**
  * After Stripe checkout redirect (?subscribed=1):
- * - Store owner: show mini wizard to collect store details, then create store
- * - Shopper: just reload clean
+ * - Reads pending store data from localStorage
+ * - If complete (name + URL if existing), creates store immediately
+ * - If incomplete, shows a quick form to collect missing info
+ * - Shopper or no pending data → clean reload
  */
 export default function SubscriptionSuccess() {
   const params = useSearchParams();
-  const router = useRouter();
-  const [storeType, setStoreType] = useState<"existing" | "fresh" | null>(null);
+  const [pending, setPending] = useState<PendingStore | null>(null);
+  const [needsForm, setNeedsForm] = useState(false);
   const [storeName, setStoreName] = useState("");
-  const [storeDescription, setStoreDescription] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    if (params.get("subscribed") !== "1") return;
-
-    const pendingType = localStorage.getItem("mall_pending_store_type");
-    if (!pendingType) {
-      // Shopper sub or no pending store — clean reload
-      window.history.replaceState({}, "", "/");
-      window.location.reload();
-      return;
-    }
-
-    setStoreType(pendingType as "existing" | "fresh");
-  }, [params]);
-
-  const handleCreate = async () => {
-    if (storeType === "existing" && !storeName.trim()) {
-      setError("Give your project a name");
-      return;
-    }
-    if (storeType === "existing" && !externalUrl.trim()) {
-      setError("Paste your project URL");
-      return;
-    }
-    if (storeType === "fresh" && !storeName.trim()) {
-      // For fresh, auto-name if empty
-      setStoreName("My Store");
-    }
-
+  const createStore = useCallback(async (data: PendingStore) => {
     setSaving(true);
     setError("");
 
-    const name = storeName.trim() || "My Store";
+    const name = data.store_name?.trim() || "My Store";
 
     try {
       const res = await fetch("/api/stores", {
@@ -58,30 +39,108 @@ export default function SubscriptionSuccess() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           store_name: name,
-          store_description: storeDescription.trim() || null,
-          store_type: storeType,
-          external_url: storeType === "existing" ? externalUrl.trim() : null,
+          store_description: data.store_description || null,
+          store_type: data.store_type,
+          external_url: data.store_type === "existing" ? data.external_url : null,
         }),
       });
 
-      if (res.ok || (await res.json().catch(() => null))?.error === "Store already exists") {
-        localStorage.removeItem("mall_pending_store_type");
+      const respData = await res.json().catch(() => ({}));
+
+      if (res.ok || respData.error === "Store already exists") {
+        localStorage.removeItem("mall_pending_store");
+        localStorage.removeItem("mall_pending_store_type"); // Clean up legacy key
         setDone(true);
         setTimeout(() => {
           window.history.replaceState({}, "", "/");
           window.location.reload();
         }, 1500);
       } else {
-        setError("Something went wrong — try again.");
+        setError(respData.error || "Something went wrong — try again.");
         setSaving(false);
       }
     } catch {
       setError("Something went wrong — try again.");
       setSaving(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (params.get("subscribed") !== "1") return;
+
+    // Try new key first, then legacy key
+    let pendingData: PendingStore | null = null;
+
+    const pendingRaw = localStorage.getItem("mall_pending_store");
+    if (pendingRaw) {
+      try {
+        pendingData = JSON.parse(pendingRaw);
+      } catch { /* ignore */ }
+    }
+
+    // Legacy: old subscribe page saved just the type
+    if (!pendingData) {
+      const legacyType = localStorage.getItem("mall_pending_store_type");
+      if (legacyType) {
+        pendingData = {
+          store_type: legacyType,
+          store_name: "",
+          store_description: null,
+          external_url: null,
+        };
+      }
+    }
+
+    if (!pendingData?.store_type) {
+      // Shopper sub or no pending store — clean reload
+      localStorage.removeItem("mall_pending_store");
+      localStorage.removeItem("mall_pending_store_type");
+      window.history.replaceState({}, "", "/");
+      window.location.reload();
+      return;
+    }
+
+    setPending(pendingData);
+
+    // Check if we have enough data to create immediately
+    const hasName = !!pendingData.store_name?.trim();
+    const needsUrl = pendingData.store_type === "existing" && !pendingData.external_url?.trim();
+
+    if (hasName && !needsUrl) {
+      // Complete data — create immediately
+      createStore(pendingData);
+    } else {
+      // Missing info — show form
+      setStoreName(pendingData.store_name || "");
+      setExternalUrl(pendingData.external_url || "");
+      setNeedsForm(true);
+    }
+  }, [params, createStore]);
+
+  const handleSubmit = () => {
+    if (!storeName.trim()) {
+      setError("Give your project a name");
+      return;
+    }
+    if (pending?.store_type === "existing" && !externalUrl.trim()) {
+      setError("Paste your project URL");
+      return;
+    }
+    setError("");
+    createStore({
+      ...pending!,
+      store_name: storeName.trim(),
+      external_url: pending?.store_type === "existing" ? externalUrl.trim() : null,
+    });
   };
 
-  if (!storeType) return null;
+  // Not triggered
+  if (!saving && !done && !needsForm && !error) return null;
+
+  const inputStyle = {
+    border: "1px solid var(--border)",
+    background: "var(--bg)",
+  };
 
   return (
     <div
@@ -96,15 +155,17 @@ export default function SubscriptionSuccess() {
           <div className="text-center py-4">
             <p className="text-3xl mb-2">🎉</p>
             <p className="text-lg font-bold" style={{ color: "var(--text)" }}>You&apos;re in!</p>
+            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+              Setting up your store...
+            </p>
           </div>
-        ) : storeType === "existing" ? (
-          /* Link Existing — name + URL */
+        ) : needsForm ? (
           <>
             <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text)" }}>
-              🔗 Connect Your Project
+              {pending?.store_type === "existing" ? "🔗 Connect Your Project" : "🏗️ Almost There"}
             </h2>
             <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
-              Payment confirmed. Last step — link your project.
+              Payment confirmed! Just a couple details and you&apos;re live.
             </p>
 
             <div className="space-y-4">
@@ -118,68 +179,33 @@ export default function SubscriptionSuccess() {
                   onChange={(e) => setStoreName(e.target.value)}
                   placeholder="What's your project called?"
                   className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+                  style={inputStyle}
+                  autoFocus
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
-                  Project URL
-                </label>
-                <input
-                  type="url"
-                  value={externalUrl}
-                  onChange={(e) => setExternalUrl(e.target.value)}
-                  placeholder="https://your-store.com"
-                  className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
-                />
-              </div>
+
+              {pending?.store_type === "existing" && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
+                    Project URL
+                  </label>
+                  <input
+                    type="url"
+                    value={externalUrl}
+                    onChange={(e) => setExternalUrl(e.target.value)}
+                    placeholder="https://your-project.com"
+                    className="w-full px-4 py-3 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
 
               {error && (
                 <p className="text-sm text-center" style={{ color: "#E85D27" }}>{error}</p>
               )}
 
               <button
-                onClick={handleCreate}
-                disabled={saving}
-                className="w-full py-3 rounded-full font-semibold text-sm border-none cursor-pointer disabled:opacity-50"
-                style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-              >
-                {saving ? "Setting up..." : "Open My Store"}
-              </button>
-            </div>
-          </>
-        ) : (
-          /* Fresh — just a description */
-          <>
-            <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text)" }}>
-              🏗️ Almost There
-            </h2>
-            <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
-              Payment confirmed. Give your store a quick description and you&apos;re live.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
-                  What are you building?
-                </label>
-                <textarea
-                  value={storeDescription}
-                  onChange={(e) => setStoreDescription(e.target.value)}
-                  placeholder="Tell people what your store is about..."
-                  rows={3}
-                  className="w-full resize-none text-sm outline-none px-4 py-3 rounded-lg"
-                  style={{ border: "1px solid var(--border)", background: "var(--bg)", fontFamily: "inherit" }}
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-center" style={{ color: "#E85D27" }}>{error}</p>
-              )}
-
-              <button
-                onClick={() => { if (!storeName) setStoreName("My Store"); handleCreate(); }}
+                onClick={handleSubmit}
                 disabled={saving}
                 className="w-full py-3 rounded-full font-semibold text-sm border-none cursor-pointer disabled:opacity-50"
                 style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
@@ -188,7 +214,26 @@ export default function SubscriptionSuccess() {
               </button>
             </div>
           </>
-        )}
+        ) : saving ? (
+          <div className="text-center py-4">
+            <p className="text-3xl mb-2">🏗️</p>
+            <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+              Setting up your store...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-4">
+            <p className="text-3xl mb-2">😕</p>
+            <p className="text-sm font-semibold mb-3" style={{ color: "#E85D27" }}>{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 rounded-lg text-sm font-semibold border-none cursor-pointer"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+            >
+              Try Again
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

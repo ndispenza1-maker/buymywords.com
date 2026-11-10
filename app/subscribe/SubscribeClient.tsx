@@ -15,8 +15,13 @@ export default function SubscribeClient() {
     setLoading(priceId);
     setError("");
 
-    // Stash the plan type — wizard uses this after payment
-    localStorage.setItem("mall_pending_store_type", storeType);
+    // Stash store data — SubscriptionSuccess creates the store after payment
+    localStorage.setItem("mall_pending_store", JSON.stringify({
+      store_type: storeType,
+      store_name: "",
+      store_description: null,
+      external_url: null,
+    }));
 
     try {
       const res = await fetch("/api/checkout", {
