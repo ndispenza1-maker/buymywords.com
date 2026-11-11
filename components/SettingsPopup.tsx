@@ -573,6 +573,73 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
   );
 }
 
+// ── Export Store Panel ──
+function ExportStoreButton() {
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const res = await fetch("/api/stores/export");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setExportMsg(`❌ ${data.error || "Export failed"}`);
+        setExporting(false);
+        return;
+      }
+      // Trigger download from the response
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="(.+?)"/);
+      const filename = match ? match[1] : "my-store.html";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportMsg("✅ Downloaded!");
+      setTimeout(() => setExportMsg(""), 3000);
+    } catch {
+      setExportMsg("❌ Export failed");
+    }
+    setExporting(false);
+  };
+
+  return (
+    <div
+      className="p-3 rounded-xl"
+      style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>📦 Export Store</p>
+          <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+            Download your store page as a standalone HTML file
+          </p>
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold border-none cursor-pointer disabled:opacity-50"
+          style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+        >
+          {exporting ? "Exporting..." : "Download"}
+        </button>
+      </div>
+      {exportMsg && (
+        <p className="text-[10px] mt-2" style={{ color: exportMsg.startsWith("✅") ? "#4CAF50" : "#E85D27" }}>
+          {exportMsg}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Settings Popup ──
 export default function SettingsPopup({
   onClose,
@@ -671,6 +738,11 @@ export default function SettingsPopup({
 
           {tab === "general" && (
             <div className="space-y-4">
+              {/* Export Store (store owners only) */}
+              {accountType === "store_owner" && storeId && (
+                <ExportStoreButton />
+              )}
+
               {/* Dark Mode */}
               <div className="flex items-center justify-between">
                 <div>
