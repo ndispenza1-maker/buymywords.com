@@ -142,6 +142,9 @@ export default async function HomePage() {
                 className="rounded-xl p-4"
                 style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
               >
+                <p className="text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: "var(--sunset-warm, #E89B6B)" }}>
+                  The Mall Shared Space
+                </p>
                 <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
                   No bots. No algorithm. No noise. Just real people using their words to sell their products, views and ideas.
                 </p>
