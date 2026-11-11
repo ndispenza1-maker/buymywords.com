@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
+import { isRateLimited } from "@/lib/security";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -21,6 +22,11 @@ export async function POST(req: NextRequest) {
   const userId = await getAuthUserId();
   if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Rate limit: 20 store updates per 15 minutes
+  if (isRateLimited(`store-update:${userId}`, 20, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many updates. Please wait a few minutes." }, { status: 429 });
   }
 
   let body;

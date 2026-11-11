@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { checkAccess } from "@/lib/subscription";
+import { isRateLimited, checkUserAgent } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Bot check — NO bots in the shared space
+  const uaBlock = checkUserAgent(request);
+  if (uaBlock) return NextResponse.json({ error: uaBlock }, { status: 403 });
+
+  // Rate limit: 60 follow/unfollow per 15 minutes
+  if (isRateLimited(`follow:${user.id}`, 60, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many follow actions. Please wait a few minutes." }, { status: 429 });
+  }
 
   // Subscription gate — shoppers need active sub to follow
   const access = await checkAccess(user.id);

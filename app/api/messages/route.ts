@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { checkAccess } from "@/lib/subscription";
-import { isRateLimited } from "@/lib/security";
+import { isRateLimited, checkUserAgent, checkAccountAge } from "@/lib/security";
 
 // GET — list conversations
 export async function GET() {
@@ -41,10 +41,23 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Bot check — NO bots in the shared space
+  const uaBlock = checkUserAgent(request);
+  if (uaBlock) return NextResponse.json({ error: uaBlock }, { status: 403 });
+
   // Subscription gate — shoppers need active sub to message
   const access = await checkAccess(user.id);
   if (!access.canMessage) {
     return NextResponse.json({ error: access.reason, gated: true }, { status: 403 });
+  }
+
+  // Account age gate — no fresh accounts spamming DMs
+  const minutesLeft = await checkAccountAge(user.id);
+  if (minutesLeft !== null) {
+    return NextResponse.json(
+      { error: `Your account is too new to message. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.` },
+      { status: 403 }
+    );
   }
 
   // H-4: Rate limit messaging — 30 messages per user per 15 minutes

@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSQL } from "@/lib/db";
 import { getStripe, PRICE_TIERS } from "@/lib/stripe";
+import { isRateLimited } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 5 checkout attempts per 15 minutes
+  if (isRateLimited(`checkout:${user.id}`, 5, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many checkout attempts. Please wait a few minutes." }, { status: 429 });
+  }
 
   const { price_id } = await request.json();
 
