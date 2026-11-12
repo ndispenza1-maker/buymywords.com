@@ -4,13 +4,13 @@ import { getSQL } from "@/lib/db";
 /**
  * GET /api/stores/leaderboard
  * Returns:
- * - leaderboard: all stores ranked by follower count (owner's followers)
+ * - leaderboard: newest 5 stores ("Fresh Stores")
  * - spotlight: the current month's spotlight store (if any)
  */
 export async function GET() {
   const sql = getSQL();
 
-  // Leaderboard: all stores, ranked by their owner's follower count
+  // Fresh Stores: newest 5 stores
   const stores = await sql`
     SELECT
       s.id AS store_id,
@@ -18,14 +18,15 @@ export async function GET() {
       s.store_type,
       s.external_url,
       s.user_id,
+      s.created_at,
       u.display_name AS owner_name,
       u.avatar_url AS owner_avatar,
       (SELECT COUNT(*)::int FROM follows WHERE following_id = s.user_id) AS follower_count
     FROM stores s
     JOIN users u ON u.id = s.user_id
     WHERE u.profile_complete = true
-    ORDER BY follower_count DESC, s.created_at ASC
-    LIMIT 50
+    ORDER BY s.created_at DESC
+    LIMIT 5
   `;
 
   // Current month spotlight

@@ -2,24 +2,25 @@
 
 import { useState, useEffect } from "react";
 
-interface LeaderboardStore {
+interface FreshStore {
   store_id: string;
   store_name: string;
   store_type: string;
   external_url: string | null;
   user_id: string;
+  created_at: string;
   owner_name: string;
   owner_avatar: string | null;
   follower_count: number;
 }
 
-interface SpotlightStore extends LeaderboardStore {
+interface SpotlightStore extends FreshStore {
   note: string | null;
   month: string;
 }
 
 export default function StoreLeaderboard() {
-  const [stores, setStores] = useState<LeaderboardStore[]>([]);
+  const [stores, setStores] = useState<FreshStore[]>([]);
   const [spotlight, setSpotlight] = useState<SpotlightStore | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -47,16 +48,31 @@ export default function StoreLeaderboard() {
     );
   }
 
-  const storeUrl = (s: LeaderboardStore) =>
+  const storeUrl = (s: FreshStore) =>
     s.store_type === "existing" && s.external_url ? s.external_url : `/store/${s.user_id}`;
 
-  const storeTarget = (s: LeaderboardStore) =>
+  const storeTarget = (s: FreshStore) =>
     s.store_type === "existing" && s.external_url ? "_blank" : undefined;
 
   const monthLabel = (month: string) => {
     const [y, m] = month.split("-");
     const date = new Date(Number(y), Number(m) - 1);
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  const timeAgo = (dateStr: string) => {
+    const now = Date.now();
+    const created = new Date(dateStr).getTime();
+    const diffMs = now - created;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   return (
@@ -126,7 +142,7 @@ export default function StoreLeaderboard() {
         </div>
       )}
 
-      {/* ── Store Leaderboard ── */}
+      {/* ── Fresh Stores ── */}
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
@@ -136,9 +152,9 @@ export default function StoreLeaderboard() {
           className="px-4 py-2.5 flex items-center gap-2"
           style={{ borderBottom: "1px solid var(--border)" }}
         >
-          <span className="text-sm">🏆</span>
+          <span className="text-sm">🆕</span>
           <p className="text-xs font-bold" style={{ color: "var(--text)" }}>
-            Store Leaderboard
+            Fresh Stores
           </p>
         </div>
 
@@ -165,16 +181,6 @@ export default function StoreLeaderboard() {
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
-                {/* Rank */}
-                <span
-                  className="text-xs font-bold w-5 text-center shrink-0"
-                  style={{
-                    color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : "var(--text-muted)",
-                  }}
-                >
-                  {i + 1}
-                </span>
-
                 {/* Avatar */}
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
@@ -199,13 +205,10 @@ export default function StoreLeaderboard() {
                   </p>
                 </div>
 
-                {/* Followers */}
+                {/* Time ago */}
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-bold" style={{ color: "var(--text)" }}>
-                    {store.follower_count}
-                  </p>
-                  <p className="text-[8px]" style={{ color: "var(--text-muted)" }}>
-                    follows
+                  <p className="text-[10px] font-semibold" style={{ color: "var(--accent)" }}>
+                    {timeAgo(store.created_at)}
                   </p>
                 </div>
               </a>

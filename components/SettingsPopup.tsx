@@ -321,7 +321,7 @@ function IDCardPanel({
             }}
           />
           <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
-            Shown on your ID card and the Store Leaderboard.
+            Shown on your ID card and Fresh Stores.
           </p>
         </div>
       )}
