@@ -55,11 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Store already exists" }, { status: 409 });
   }
 
-  // Create store — Mall provides the AI, assistant always enabled for fresh stores
+  // Create store — all paying store owners get the assistant
   try {
     const stores = await sql`
       INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled)
-      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${store_type === "fresh"})
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, true)
       RETURNING id
     `;
 

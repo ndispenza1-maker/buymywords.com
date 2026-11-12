@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useWizard } from "./WizardContext";
 
 type StoreType = "existing" | "fresh" | null;
@@ -9,7 +8,6 @@ type Step = "choose" | "setup" | "pricing";
 
 export default function BuildStoreWizard() {
   const { isOpen, closeWizard } = useWizard();
-  const router = useRouter();
   const [step, setStep] = useState<Step>("choose");
   const [storeType, setStoreType] = useState<StoreType>(null);
   const [storeName, setStoreName] = useState("");
@@ -50,45 +48,7 @@ export default function BuildStoreWizard() {
       return;
     }
     setError("");
-
-    if (storeType === "existing") {
-      // Connect Existing is FREE — create store directly
-      handleFreeConnect();
-    } else {
-      // Fresh → pricing step
-      setStep("pricing");
-    }
-  };
-
-  // Free connect-existing: create store without Stripe
-  const handleFreeConnect = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          store_name: storeName.trim(),
-          store_description: storeDescription.trim() || null,
-          store_type: "existing",
-          external_url: externalUrl.trim(),
-        }),
-      });
-      if (res.ok) {
-        handleClose();
-        router.push("/");
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => null);
-        setError(data?.error || "Something went wrong");
-        setLoading(false);
-      }
-    } catch {
-      setError("Something went wrong");
-      setLoading(false);
-    }
+    setStep("pricing");
   };
 
   // Save store data to localStorage, then redirect to Stripe
@@ -100,8 +60,8 @@ export default function BuildStoreWizard() {
     const storeData = {
       store_name: storeName.trim(),
       store_description: storeDescription.trim() || null,
-      store_type: "fresh",
-      external_url: null,
+      store_type: storeType,
+      external_url: storeType === "existing" ? externalUrl.trim() : null,
     };
     localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
 
@@ -193,9 +153,6 @@ export default function BuildStoreWizard() {
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       I already have a website or project
                     </p>
-                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "#4CAF50" }}>
-                      Free
-                    </p>
                   </div>
                 </div>
               </button>
@@ -216,12 +173,13 @@ export default function BuildStoreWizard() {
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       Blank store page + AI assistant to help you build
                     </p>
-                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
-                      From $19.99/mo · Assistant included
-                    </p>
                   </div>
                 </div>
               </button>
+
+              <p className="text-[10px] text-center pt-1" style={{ color: "var(--text-muted)" }}>
+                Both options include a store page and the AI assistant · From $19.99/mo
+              </p>
             </div>
           )}
 
@@ -288,17 +246,16 @@ export default function BuildStoreWizard() {
                 </button>
                 <button
                   onClick={handleSetupNext}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer"
                   style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
                 >
-                  {storeType === "existing" ? (loading ? "Setting up..." : "Connect — Free") : "Next"}
+                  Next
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Pricing (Fresh only) */}
+          {/* Step 3: Pricing — same for both paths */}
           {step === "pricing" && (
             <div className="space-y-3">
               {/* Summary */}
@@ -307,7 +264,7 @@ export default function BuildStoreWizard() {
                 style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
               >
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  🏗️{" "}
+                  {storeType === "existing" ? "🔗" : "🏗️"}{" "}
                   <span className="font-semibold" style={{ color: "var(--text)" }}>{storeName}</span>
                   <span style={{ color: "var(--accent)" }}> · ✨ Assistant included</span>
                 </p>
