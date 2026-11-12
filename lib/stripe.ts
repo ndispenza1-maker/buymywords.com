@@ -17,7 +17,6 @@ export const PRICE_TIERS: Record<string, { tier: string; label: string }> = {
   "price_1UX2Mh2ctK45EjG7Cd3NbKEA": { tier: "owner_basic", label: "Store Owner · $19.99/mo" },
   "price_1UX2OC2ctK45EjG7hBCsExY2": { tier: "owner_basic", label: "Store Owner · $99.99/6mo" },
   "price_1UX2PM2ctK45EjG7AcZfFxLT": { tier: "owner_basic", label: "Store Owner · $149.99/yr" },
-  "price_1UXScd2ctK45EjG7QbTNoaey": { tier: "owner_assistant", label: "Store Owner + Assistant · $29.99/mo" },
 };
 
 // Shopper price
@@ -28,5 +27,4 @@ export const OWNER_PRICES = {
   monthly: "price_1UX2Mh2ctK45EjG7Cd3NbKEA",
   sixMonth: "price_1UX2OC2ctK45EjG7hBCsExY2",
   yearly: "price_1UX2PM2ctK45EjG7AcZfFxLT",
-  assistant: "price_1UXScd2ctK45EjG7QbTNoaey",
 };

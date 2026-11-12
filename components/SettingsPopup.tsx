@@ -388,7 +388,7 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
     if (!isActive && !isOwner) return "Free";
     if (subscriptionTier === "shopper") return "Mall+ · $9.99/mo";
     if (subscriptionTier === "owner_basic") return "Store Owner";
-    if (subscriptionTier === "owner_assistant") return "Store Owner · $29.99/mo";
+    if (subscriptionTier === "owner_assistant") return "Store Owner";
     if (subscriptionTier === "founders") return "Founders Access";
     if (isOwner) return "Store Owner (unpaid)";
     return "Free";
@@ -488,24 +488,10 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🔗 Connect Existing</p>
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Link your project to The Mall</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🏗️ Start Fresh + Assistant</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Store page + AI assistant</p>
                 </div>
                 <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$19.99/mo</p>
-              </div>
-            </button>
-            <button
-              onClick={() => handleCheckout("price_1UXScd2ctK45EjG7QbTNoaey")}
-              disabled={!!loading}
-              className="w-full p-3 rounded-xl text-left border-none cursor-pointer disabled:opacity-50"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>🏗️ Start Fresh</p>
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Blank store + AI assistant</p>
-                </div>
-                <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$29.99/mo</p>
               </div>
             </button>
           </>
@@ -550,20 +536,6 @@ function SubscriptionPanel({ accountType, subscriptionStatus, subscriptionTier }
                   <p className="text-[10px]" style={{ color: "var(--accent)" }}>Best value · $12.50/mo</p>
                 </div>
                 <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$149.99</p>
-              </div>
-            </button>
-            <button
-              onClick={() => handleCheckout("price_1UXScd2ctK45EjG7QbTNoaey")}
-              disabled={!!loading}
-              className="w-full p-3 rounded-xl text-left border-none cursor-pointer disabled:opacity-50"
-              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Fresh + Assistant</p>
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>AI builds your store</p>
-                </div>
-                <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>$29.99/mo</p>
               </div>
             </button>
           </>

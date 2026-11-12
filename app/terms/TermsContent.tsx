@@ -76,8 +76,8 @@ export default function TermsContent() {
           <p className="mb-3">The Mall offers the following subscription plans:</p>
           <ul className="list-disc pl-6 space-y-2 mb-4">
             <li><strong style={{ color: "var(--text)" }}>Shopper — Mall+:</strong> $9.99/month. Unlocks commenting, messaging, following, and full shared-space access.</li>
-            <li><strong style={{ color: "var(--text)" }}>Store Owner — Connect Existing:</strong> $19.99/month, $99.99/6 months, or $149.99/year. Link an existing project to The Mall.</li>
-            <li><strong style={{ color: "var(--text)" }}>Store Owner — Start Fresh:</strong> $29.99/month. Includes a blank store page and an AI-powered building assistant.</li>
+            <li><strong style={{ color: "var(--text)" }}>Store Owner — Connect Existing:</strong> Free. Link an existing project to The Mall at no cost.</li>
+            <li><strong style={{ color: "var(--text)" }}>Store Owner — Start Fresh:</strong> $19.99/month, $99.99/6 months, or $149.99/year. Includes a store page and an AI-powered building assistant.</li>
           </ul>
 
           <h3 className="font-semibold mb-2" style={{ color: "var(--text)" }}>Auto-Renewal</h3>

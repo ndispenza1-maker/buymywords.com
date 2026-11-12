@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useWizard } from "./WizardContext";
 
 type StoreType = "existing" | "fresh" | null;
@@ -8,6 +9,7 @@ type Step = "choose" | "setup" | "pricing";
 
 export default function BuildStoreWizard() {
   const { isOpen, closeWizard } = useWizard();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("choose");
   const [storeType, setStoreType] = useState<StoreType>(null);
   const [storeName, setStoreName] = useState("");
@@ -48,7 +50,45 @@ export default function BuildStoreWizard() {
       return;
     }
     setError("");
-    setStep("pricing");
+
+    if (storeType === "existing") {
+      // Connect Existing is FREE — create store directly
+      handleFreeConnect();
+    } else {
+      // Fresh → pricing step
+      setStep("pricing");
+    }
+  };
+
+  // Free connect-existing: create store without Stripe
+  const handleFreeConnect = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_name: storeName.trim(),
+          store_description: storeDescription.trim() || null,
+          store_type: "existing",
+          external_url: externalUrl.trim(),
+        }),
+      });
+      if (res.ok) {
+        handleClose();
+        router.push("/");
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || "Something went wrong");
+        setLoading(false);
+      }
+    } catch {
+      setError("Something went wrong");
+      setLoading(false);
+    }
   };
 
   // Save store data to localStorage, then redirect to Stripe
@@ -60,8 +100,8 @@ export default function BuildStoreWizard() {
     const storeData = {
       store_name: storeName.trim(),
       store_description: storeDescription.trim() || null,
-      store_type: storeType,
-      external_url: storeType === "existing" ? externalUrl.trim() : null,
+      store_type: "fresh",
+      external_url: null,
     };
     localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
 
@@ -153,8 +193,8 @@ export default function BuildStoreWizard() {
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       I already have a website or project
                     </p>
-                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
-                      From $19.99/mo
+                    <p className="text-[10px] mt-1 font-semibold" style={{ color: "#4CAF50" }}>
+                      Free
                     </p>
                   </div>
                 </div>
@@ -177,7 +217,7 @@ export default function BuildStoreWizard() {
                       Blank store page + AI assistant to help you build
                     </p>
                     <p className="text-[10px] mt-1 font-semibold" style={{ color: "var(--accent)" }}>
-                      $29.99/mo · Assistant included
+                      From $19.99/mo · Assistant included
                     </p>
                   </div>
                 </div>
@@ -248,16 +288,17 @@ export default function BuildStoreWizard() {
                 </button>
                 <button
                   onClick={handleSetupNext}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer"
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
                   style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
                 >
-                  Next
+                  {storeType === "existing" ? (loading ? "Setting up..." : "Connect — Free") : "Next"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Pricing */}
+          {/* Step 3: Pricing (Fresh only) */}
           {step === "pricing" && (
             <div className="space-y-3">
               {/* Summary */}
@@ -266,9 +307,9 @@ export default function BuildStoreWizard() {
                 style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
               >
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {storeType === "existing" ? "🔗" : "🏗️"}{" "}
+                  🏗️{" "}
                   <span className="font-semibold" style={{ color: "var(--text)" }}>{storeName}</span>
-                  {storeType === "fresh" && <span style={{ color: "var(--accent)" }}> · ✨ Assistant included</span>}
+                  <span style={{ color: "var(--accent)" }}> · ✨ Assistant included</span>
                 </p>
               </div>
 
@@ -278,83 +319,62 @@ export default function BuildStoreWizard() {
                 </p>
               )}
 
-              {storeType === "fresh" ? (
-                /* Fresh: one price, assistant included */
-                <button
-                  onClick={() => handleCheckout("price_1UXScd2ctK45EjG7QbTNoaey")}
-                  disabled={loading}
-                  className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                  style={{ background: "var(--bg)", border: "1px solid var(--accent)" }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Start Fresh + Assistant</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>AI assistant helps you build your store</p>
-                    </div>
-                    <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$29.99<span className="text-xs font-normal">/mo</span></p>
+              <button
+                onClick={() => handleCheckout("price_1UX2Mh2ctK45EjG7Cd3NbKEA")}
+                disabled={loading}
+                className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Monthly</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Flexible, cancel anytime</p>
                   </div>
-                </button>
-              ) : (
-                /* Connect Existing: 3 tiers */
-                <>
-                  <button
-                    onClick={() => handleCheckout("price_1UX2Mh2ctK45EjG7Cd3NbKEA")}
-                    disabled={loading}
-                    className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Monthly</p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Flexible, cancel anytime</p>
-                      </div>
-                      <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$19.99<span className="text-xs font-normal">/mo</span></p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => handleCheckout("price_1UX2OC2ctK45EjG7hBCsExY2")}
-                    disabled={loading}
-                    className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                    style={{ background: "var(--bg)", border: "2px solid var(--accent)" }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-                          6 Months{" "}
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
-                            Save 17%
-                          </span>
-                        </p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Best for committed builders</p>
-                      </div>
-                      <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$99.99<span className="text-xs font-normal">/6mo</span></p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => handleCheckout("price_1UX2PM2ctK45EjG7AcZfFxLT")}
-                    disabled={loading}
-                    className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-                          Yearly{" "}
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
-                            Save 17%
-                          </span>
-                        </p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Lock in the best rate</p>
-                      </div>
-                      <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$149.99<span className="text-xs font-normal">/yr</span></p>
-                    </div>
-                  </button>
-                </>
-              )}
+                  <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$19.99<span className="text-xs font-normal">/mo</span></p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleCheckout("price_1UX2OC2ctK45EjG7hBCsExY2")}
+                disabled={loading}
+                className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
+                style={{ background: "var(--bg)", border: "2px solid var(--accent)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                      6 Months{" "}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                        Save 17%
+                      </span>
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Best for committed builders</p>
+                  </div>
+                  <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$99.99<span className="text-xs font-normal">/6mo</span></p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleCheckout("price_1UX2PM2ctK45EjG7AcZfFxLT")}
+                disabled={loading}
+                className="w-full p-4 rounded-xl text-left border-none cursor-pointer transition-all disabled:opacity-50"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                      Yearly{" "}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                        Best value
+                      </span>
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Lock in $12.50/mo</p>
+                  </div>
+                  <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>$149.99<span className="text-xs font-normal">/yr</span></p>
+                </div>
+              </button>
 
               <button
                 onClick={() => { setStep("setup"); setError(""); }}
