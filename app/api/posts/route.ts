@@ -16,13 +16,22 @@ export async function GET(request: NextRequest) {
   // If logged in, include per-user "liked" status; otherwise default false
   const userId = user?.id || null;
 
+  // visitor_id for anonymous like tracking (sent via query param)
+  const visitorId = url.searchParams.get("vid") || null;
+
   const posts = cursor
     ? await sql`
         SELECT p.*, u.display_name, u.avatar_url,
-          (SELECT COUNT(*) FROM likes WHERE post_id = p.id)::int AS like_count,
+          (
+            (SELECT COUNT(*) FROM likes WHERE post_id = p.id) +
+            (SELECT COUNT(*) FROM anonymous_likes WHERE post_id = p.id)
+          )::int AS like_count,
           (SELECT COUNT(*) FROM comments WHERE post_id = p.id)::int AS comment_count,
-          CASE WHEN ${userId}::uuid IS NOT NULL
-            THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+          CASE
+            WHEN ${userId}::uuid IS NOT NULL
+              THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+            WHEN ${visitorId}::text IS NOT NULL
+              THEN EXISTS(SELECT 1 FROM anonymous_likes WHERE post_id = p.id AND visitor_id = ${visitorId})
             ELSE false
           END AS liked
         FROM posts p
@@ -33,10 +42,16 @@ export async function GET(request: NextRequest) {
       `
     : await sql`
         SELECT p.*, u.display_name, u.avatar_url,
-          (SELECT COUNT(*) FROM likes WHERE post_id = p.id)::int AS like_count,
+          (
+            (SELECT COUNT(*) FROM likes WHERE post_id = p.id) +
+            (SELECT COUNT(*) FROM anonymous_likes WHERE post_id = p.id)
+          )::int AS like_count,
           (SELECT COUNT(*) FROM comments WHERE post_id = p.id)::int AS comment_count,
-          CASE WHEN ${userId}::uuid IS NOT NULL
-            THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+          CASE
+            WHEN ${userId}::uuid IS NOT NULL
+              THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${userId})
+            WHEN ${visitorId}::text IS NOT NULL
+              THEN EXISTS(SELECT 1 FROM anonymous_likes WHERE post_id = p.id AND visitor_id = ${visitorId})
             ELSE false
           END AS liked
         FROM posts p

@@ -263,7 +263,7 @@ function PostCard({
       {/* Actions */}
       <div className="flex items-center gap-6 text-xs" style={{ color: "var(--text-muted)" }}>
         <button
-          onClick={() => (isGuest ? onGate() : onLike(post.id))}
+          onClick={() => onLike(post.id)}
           className="flex items-center gap-1 hover:opacity-80 bg-transparent border-none cursor-pointer"
           style={{ color: post.liked ? "var(--sunset-warm)" : "var(--text-muted)" }}
         >
@@ -425,13 +425,26 @@ export default function FeedClient({
   const hasSubscription = isStoreOwner || subscriptionStatus === "active";
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // Stable visitor ID for anonymous like tracking
+  const getVisitorId = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    let vid = localStorage.getItem("mall_visitor_id");
+    if (!vid) {
+      vid = crypto.randomUUID();
+      localStorage.setItem("mall_visitor_id", vid);
+    }
+    return vid;
+  }, []);
+
   const loadPosts = useCallback(async () => {
-    const res = await fetch("/api/posts");
+    const vid = getVisitorId();
+    const url = vid ? `/api/posts?vid=${encodeURIComponent(vid)}` : "/api/posts";
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       setPosts(data.posts);
     }
-  }, []);
+  }, [getVisitorId]);
 
   useEffect(() => {
     loadPosts();
@@ -473,7 +486,17 @@ export default function FeedClient({
   };
 
   const toggleLike = async (postId: string) => {
-    const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
+    const opts: RequestInit = { method: "POST" };
+
+    // Anonymous users send visitor_id in body
+    if (!currentUserId) {
+      const vid = getVisitorId();
+      if (!vid) return;
+      opts.headers = { "Content-Type": "application/json" };
+      opts.body = JSON.stringify({ visitor_id: vid });
+    }
+
+    const res = await fetch(`/api/posts/${postId}/like`, opts);
     if (res.ok) {
       const data = await res.json();
       setPosts((p) =>
