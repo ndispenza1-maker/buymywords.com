@@ -1,21 +1,47 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
-type Message = { role: "user" | "assistant"; content: string };
+/* ── Types ────────────────────────────────────────────── */
+
+type ImageAttachment = {
+  file: File;
+  preview: string; // object URL for thumbnail
+  uploading?: boolean;
+};
+
+type MessageContent =
+  | string
+  | { type: "text"; text: string }
+  | { type: "image_url"; url: string };
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  /** URLs of images the user attached to this message */
+  images?: string[];
+};
 
 interface AssistantWindowProps {
   storeId: string;
   storeName: string;
 }
 
+/* ── Component ────────────────────────────────────────── */
+
 export default function AssistantWindow({ storeId, storeName }: AssistantWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [greeted, setGreeted] = useState(false);
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Scroll & focus ─────────────────────────────────── */
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,7 +51,8 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
     inputRef.current?.focus();
   }, []);
 
-  // Load history or greet on mount
+  /* ── Greeting / history ─────────────────────────────── */
+
   useEffect(() => {
     if (!greeted) {
       setGreeted(true);
@@ -46,7 +73,9 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
           return;
         }
       }
-    } catch { /* fall through to greeting */ }
+    } catch {
+      /* fall through to greeting */
+    }
     fetchGreeting();
   };
 
@@ -77,15 +106,133 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
     }
   };
 
+  /* ── Image helpers ──────────────────────────────────── */
+
+  const addImages = useCallback(
+    (files: File[]) => {
+      const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length === 0) return;
+      // Max 4 pending at a time
+      const slots = 4 - pendingImages.length;
+      const toAdd = imageFiles.slice(0, Math.max(0, slots));
+      const newAttachments: ImageAttachment[] = toAdd.map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      setPendingImages((prev) => [...prev, ...newAttachments]);
+    },
+    [pendingImages.length]
+  );
+
+  const removeImage = (idx: number) => {
+    setPendingImages((prev) => {
+      const removed = prev[idx];
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("store_id", storeId);
+    try {
+      const res = await fetch("/api/upload/store-image", { method: "POST", body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Image upload failed:", data.error);
+        return null;
+      }
+      const data = await res.json();
+      return data.url as string;
+    } catch (err) {
+      console.error("Image upload error:", err);
+      return null;
+    }
+  };
+
+  /* ── Paste handler ──────────────────────────────────── */
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        addImages(files);
+      }
+    },
+    [addImages]
+  );
+
+  /* ── Drag & drop ────────────────────────────────────── */
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const files: File[] = [];
+      if (e.dataTransfer.files) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          files.push(e.dataTransfer.files[i]);
+        }
+      }
+      addImages(files);
+    },
+    [addImages]
+  );
+
+  /* ── Send message ───────────────────────────────────── */
+
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && pendingImages.length === 0) || loading) return;
 
-    const userMsg: Message = { role: "user", content: text };
+    // Upload all pending images first
+    setLoading(true);
+    const uploadedUrls: string[] = [];
+    for (const img of pendingImages) {
+      const url = await uploadImage(img.file);
+      if (url) uploadedUrls.push(url);
+    }
+    // Clean up previews
+    pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setPendingImages([]);
+
+    const userMsg: Message = {
+      role: "user",
+      content: text || (uploadedUrls.length > 0 ? "Here's an image for my store page." : ""),
+      ...(uploadedUrls.length > 0 && { images: uploadedUrls }),
+    };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
-    setLoading(true);
 
     try {
       const res = await fetch("/api/assistant/chat", {
@@ -120,21 +267,20 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
     }
   };
 
+  /* ── Render ─────────────────────────────────────────── */
+
   return (
     <div
       className="flex flex-col"
-      style={{
-        height: "100vh",
-        width: "100vw",
-        background: "var(--bg-card)",
-      }}
+      style={{ height: "100vh", width: "100vw", background: "var(--bg-card)" }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* Header */}
       <div
         className="px-4 py-3 flex items-center justify-between shrink-0"
-        style={{
-          background: "linear-gradient(135deg, var(--accent), var(--sunset-warm))",
-        }}
+        style={{ background: "linear-gradient(135deg, var(--accent), var(--sunset-warm))" }}
       >
         <div className="flex items-center gap-2">
           <span className="text-lg">✨</span>
@@ -156,6 +302,37 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
           ← Back to Store
         </button>
       </div>
+
+      {/* Drag overlay */}
+      {dragOver && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 50,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg-card)",
+              borderRadius: 16,
+              padding: "32px 48px",
+              border: "3px dashed var(--accent)",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontSize: 32, margin: 0 }}>🖼️</p>
+            <p style={{ color: "var(--text)", fontWeight: 600, marginTop: 8 }}>
+              Drop image here
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -181,6 +358,27 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
               border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
             }}
           >
+            {/* Show attached images */}
+            {msg.images && msg.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {msg.images.map((url, j) => (
+                  <img
+                    key={j}
+                    src={url}
+                    alt="Attached"
+                    style={{
+                      maxWidth: 160,
+                      maxHeight: 120,
+                      borderRadius: 8,
+                      objectFit: "cover",
+                      border: msg.role === "user"
+                        ? "2px solid rgba(255,255,255,0.3)"
+                        : "2px solid var(--border)",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             <div className="text-xs leading-relaxed whitespace-pre-wrap">{msg.content}</div>
           </div>
         ))}
@@ -205,31 +403,113 @@ export default function AssistantWindow({ storeId, storeName }: AssistantWindowP
         <div ref={chatEndRef} />
       </div>
 
+      {/* Pending image previews */}
+      {pendingImages.length > 0 && (
+        <div
+          className="flex gap-2 px-3 py-2 overflow-x-auto shrink-0"
+          style={{ borderTop: "1px solid var(--border)", background: "var(--bg-card)" }}
+        >
+          {pendingImages.map((img, i) => (
+            <div key={i} className="relative shrink-0">
+              <img
+                src={img.preview}
+                alt="Pending upload"
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 8,
+                  objectFit: "cover",
+                  border: "2px solid var(--border)",
+                }}
+              />
+              <button
+                onClick={() => removeImage(i)}
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "#e53e3e",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  lineHeight: 1,
+                }}
+                title="Remove"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-3 py-2 shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) {
+                addImages(Array.from(e.target.files));
+                e.target.value = "";
+              }
+            }}
+          />
+          {/* Image upload button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+            className="shrink-0 rounded-lg border-none cursor-pointer disabled:opacity-40"
+            style={{
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+            }}
+            title="Attach image"
+          >
+            📎
+          </button>
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask me anything..."
+            onPaste={handlePaste}
+            placeholder={
+              pendingImages.length > 0
+                ? "Tell me where to put the image..."
+                : "Ask me anything..."
+            }
             rows={2}
             className="flex-1 px-3 py-2 rounded-lg text-sm outline-none resize-none"
-            style={{
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-            }}
+            style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
             disabled={loading}
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
-            className="px-3 rounded-lg border-none cursor-pointer disabled:opacity-40 self-end"
+            disabled={loading || (!input.trim() && pendingImages.length === 0)}
+            className="px-3 rounded-lg border-none cursor-pointer disabled:opacity-40"
             style={{
               background: "var(--accent)",
               color: "var(--text-inverse)",
-              height: "36px",
+              height: 36,
             }}
           >
             →

@@ -25,6 +25,8 @@ async function getAuthUserId(): Promise<string | null> {
   }
 }
 
+/* ── System prompt ─────────────────────────────────────────── */
+
 const SYSTEM_PROMPT = `You are the Mall Assistant — the friendly, smart AI that helps store owners build and manage their store page on The Mall of Projects.
 
 YOU ARE BOTH THE GUIDE AND THE BUILDER. You do everything: chat, advise, AND generate the actual store HTML.
@@ -71,6 +73,29 @@ CRITICAL RULES FOR LINKS AND BUTTONS:
 - Real external links (Stripe, PayPal, etc.) use full https:// URLs with target="_blank"
 - Placeholder links that aren't ready yet: use button elements, not anchor tags
 
+IMAGE HANDLING — CRITICAL:
+When the user shares an image in the chat, you will receive it as a vision attachment. The image has ALREADY been uploaded and has a permanent Cloudinary URL. You will also see the image URL provided as text (starting with https://res.cloudinary.com/).
+
+RULES FOR PLACING IMAGES:
+- Use the EXACT Cloudinary URL provided — never modify it, never make up URLs
+- Place the image using a standard <img> tag with the full URL
+- Always add descriptive alt text based on what you see in the image
+- Make images responsive: style="max-width: 100%; height: auto;"
+- If the user says "hero image" or "banner": make it full-width at the top
+- If the user says "product image": size it appropriately in a product card/grid
+- If the user says "logo": place it in the header, keep it small (max-height ~60px)
+- If the user says "gallery" or "add to gallery": create/extend a grid of images
+- If the user just shares an image with no instruction: ASK where they want it
+- When regenerating the full page, PRESERVE all previously placed images and their URLs
+- Multiple images: the user can share several. Each gets its own Cloudinary URL. Keep all of them.
+
+YOUTUBE / VIDEO EMBEDS:
+- YouTube CHANNEL links (youtube.com/@handle, youtube.com/c/name, youtube.com/channel/ID) CANNOT be embedded as a video player — YouTube only allows individual videos to be embedded.
+- When a user gives you a channel link: EXPLAIN this to them in plain language. Say something like: "YouTube doesn't allow channel pages to be embedded on other sites — only individual videos. I can add a YouTube button that links to your channel, or if you give me a specific video link I can embed that as a player on your page. What would you prefer?"
+- For individual video links (youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID): embed as <iframe src="https://www.youtube.com/embed/VIDEO_ID" width="100%" height="315" frameborder="0" allowfullscreen style="border-radius:12px;"></iframe>
+- When adding a channel as a link/button, make it look good — styled button with a 🎬 or ▶️ icon, matches the page design
+- When in doubt, use a link/button — it always works
+
 CONNECTING SERVICES (guide them step by step):
 - Stripe: Create account → make a Payment Link → tell you: "Add a buy button with this link: [paste Stripe link]"
 - Beehiiv: Create free account → get embed code → tell you: "Add an email signup using this: [paste code]"
@@ -79,6 +104,53 @@ CONNECTING SERVICES (guide them step by step):
 FIRST INTERACTION:
 When there's no chat history yet, greet them warmly and offer to build a starter page:
 "Hey! 👋 I'm your Mall Assistant. I'll help you build your store page right here in this chat — no coding needed. Want me to put together a starter page for [store name]? Just tell me what you're selling and the vibe you want, and I'll build it."`;
+
+/* ── Build Claude-compatible messages (with vision) ───────── */
+
+type InboundMessage = {
+  role: string;
+  content: string;
+  images?: string[];
+};
+
+type ClaudeContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "url"; url: string } };
+
+type ClaudeMessage = {
+  role: "user" | "assistant";
+  content: string | ClaudeContentBlock[];
+};
+
+function buildClaudeMessages(messages: InboundMessage[]): ClaudeMessage[] {
+  return messages.map((m) => {
+    const role: "user" | "assistant" = m.role === "system" ? "user" : (m.role as "user" | "assistant");
+    const hasImages = m.images && m.images.length > 0;
+
+    if (!hasImages) {
+      return { role, content: m.content };
+    }
+
+    // Build multimodal content blocks
+    const blocks: ClaudeContentBlock[] = [];
+
+    // Add images first so Claude sees them
+    for (const url of m.images!) {
+      blocks.push({ type: "image", source: { type: "url", url } });
+    }
+
+    // Add a text block with the user's message AND the URLs for reference
+    const urlList = m.images!.map((u) => `Image URL: ${u}`).join("\n");
+    const textContent = m.content
+      ? `${m.content}\n\n${urlList}`
+      : `The user shared image(s) for their store page.\n\n${urlList}`;
+    blocks.push({ type: "text", text: textContent });
+
+    return { role, content: blocks };
+  });
+}
+
+/* ── POST handler ──────────────────────────────────────────── */
 
 export async function POST(req: NextRequest) {
   const userId = await getAuthUserId();
@@ -132,6 +204,7 @@ export async function POST(req: NextRequest) {
 
   // Only send last 6 messages to avoid context bloat — the current page is in the system prompt
   const recentMessages = messages.slice(-6);
+  const claudeMessages = buildClaudeMessages(recentMessages);
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -145,10 +218,7 @@ export async function POST(req: NextRequest) {
         model: BUILDER_MODEL,
         max_tokens: 16000,
         system: contextPrompt,
-        messages: recentMessages.map((m: { role: string; content: string }) => ({
-          role: m.role === "system" ? "user" : m.role,
-          content: m.content,
-        })),
+        messages: claudeMessages,
       }),
     });
 
@@ -233,18 +303,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/* ── HTML extraction helpers ───────────────────────────────── */
+
 // Extract HTML from AI response
 function extractHTML(content: string): string {
   let html = "";
 
   // Try markdown code block (closed fence)
   const htmlBlock = content.match(/```html?\s*\n([\s\S]*?)```/);
-  if (htmlBlock) { html = htmlBlock[1].trim(); }
+  if (htmlBlock) {
+    html = htmlBlock[1].trim();
+  }
 
   // Handle unclosed code block
   if (!html) {
     const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
-    if (unclosed && unclosed[1].includes("<html")) { html = unclosed[1].trim(); }
+    if (unclosed && unclosed[1].includes("<html")) {
+      html = unclosed[1].trim();
+    }
   }
 
   // Find <!DOCTYPE or <html directly in content
@@ -252,7 +328,9 @@ function extractHTML(content: string): string {
     const docIdx = content.indexOf("<!DOCTYPE");
     const htmlIdx = content.indexOf("<html");
     const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
-    if (startIdx >= 0) { html = content.substring(startIdx).trim(); }
+    if (startIdx >= 0) {
+      html = content.substring(startIdx).trim();
+    }
   }
 
   // Strip anything after </html>
@@ -264,8 +342,24 @@ function extractHTML(content: string): string {
   }
 
   // Sanitize: inject <base target="_blank">
-  if (html && !html.includes('<base')) {
-    html = html.replace('<head>', '<head><base target="_blank">');
+  if (html && !html.includes("<base")) {
+    html = html.replace("<head>", '<head><base target="_blank">');
+  }
+
+  // Auto-convert YouTube URLs in iframes to embed format
+  if (html) {
+    html = html.replace(
+      /(<iframe[^>]*\ssrc=["'])https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)([^"']*?)(["'])/gi,
+      "$1https://www.youtube.com/embed/$2$4"
+    );
+    html = html.replace(
+      /(<iframe[^>]*\ssrc=["'])https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)(["'])/gi,
+      "$1https://www.youtube.com/embed/$2$3"
+    );
+    html = html.replace(
+      /(<iframe[^>]*\ssrc=["'])https?:\/\/youtu\.be\/([a-zA-Z0-9_-]+)(["'])/gi,
+      "$1https://www.youtube.com/embed/$2$3"
+    );
   }
 
   return html;

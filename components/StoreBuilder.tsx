@@ -241,7 +241,7 @@ export default function StoreBuilder({
             {preview ? (
               <iframe
                 srcDoc={preview}
-                sandbox="allow-scripts allow-forms allow-popups"
+                sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-top-navigation-by-user-activation"
                 className="w-full h-full border-none"
                 title="Store Preview"
               />
