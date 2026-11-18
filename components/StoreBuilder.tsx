@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
-type Message = { role: "user" | "assistant"; content: string };
+/* ── Types ────────────────────────────────────────────── */
+
+type ImageAttachment = {
+  file: File;
+  preview: string;
+};
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  images?: string[];
+};
 
 interface StoreBuilderProps {
   storeId: string;
@@ -14,6 +25,8 @@ interface StoreBuilderProps {
   chatHistory: Message[];
   ownerName: string;
 }
+
+/* ── Component ────────────────────────────────────────── */
 
 export default function StoreBuilder({
   storeId,
@@ -29,8 +42,12 @@ export default function StoreBuilder({
   const [preview, setPreview] = useState<string>(storeContent || "");
   const [saveMsg, setSaveMsg] = useState("");
   const [greeted, setGreeted] = useState(initialHistory.length > 0);
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // For connected projects, show a different view
   if (storeType === "existing" && externalUrl) {
@@ -53,11 +70,12 @@ export default function StoreBuilder({
     );
   }
 
+  /* ── Scroll & greeting ──────────────────────────────── */
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // On mount, extract preview from last assistant HTML message if no published content
   useEffect(() => {
     if (!preview && messages.length > 0) {
       const lastAssistant = [...messages].reverse().find(m => m.role === "assistant" && m.content);
@@ -69,7 +87,6 @@ export default function StoreBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-greet on first visit (no history)
   useEffect(() => {
     if (!greeted && messages.length === 0) {
       setGreeted(true);
@@ -90,8 +107,6 @@ export default function StoreBuilder({
       if (res.ok) {
         const data = await res.json();
         setMessages([{ role: "assistant", content: data.content }]);
-
-        // If the greeting includes HTML, show it
         if (data.hasHTML && !data.truncated) {
           const html = extractHTML(data.content);
           if (html) {
@@ -111,6 +126,8 @@ export default function StoreBuilder({
     }
   };
 
+  /* ── HTML helpers ───────────────────────────────────── */
+
   const sanitizeHTML = (html: string): string => {
     if (!html.includes('<base')) {
       html = html.replace('<head>', '<head><base target="_blank">');
@@ -122,41 +139,151 @@ export default function StoreBuilder({
 
   const extractHTML = (content: string): string => {
     let html = "";
-
     const htmlBlock = content.match(/```html?\s*\n([\s\S]*?)```/);
     if (htmlBlock) { html = htmlBlock[1].trim(); }
-
     if (!html) {
       const unclosed = content.match(/```html?\s*\n([\s\S]*)/);
       if (unclosed && unclosed[1].includes("<html")) { html = unclosed[1].trim(); }
     }
-
     if (!html) {
       const docIdx = content.indexOf("<!DOCTYPE");
       const htmlIdx = content.indexOf("<html");
       const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
       if (startIdx >= 0) { html = content.substring(startIdx).trim(); }
     }
-
     if (html) {
       const closeIdx = html.lastIndexOf("</html>");
-      if (closeIdx >= 0) {
-        html = html.substring(0, closeIdx + "</html>".length);
-      }
+      if (closeIdx >= 0) { html = html.substring(0, closeIdx + "</html>".length); }
     }
-
     return html ? sanitizeHTML(html) : "";
   };
 
+  /* ── Image helpers ──────────────────────────────────── */
+
+  const addImages = useCallback(
+    (files: File[]) => {
+      const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length === 0) return;
+      const slots = 4 - pendingImages.length;
+      const toAdd = imageFiles.slice(0, Math.max(0, slots));
+      const newAttachments: ImageAttachment[] = toAdd.map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      setPendingImages((prev) => [...prev, ...newAttachments]);
+    },
+    [pendingImages.length]
+  );
+
+  const removeImage = (idx: number) => {
+    setPendingImages((prev) => {
+      const removed = prev[idx];
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("store_id", storeId);
+    try {
+      const res = await fetch("/api/upload/store-image", { method: "POST", body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Image upload failed:", data.error);
+        return null;
+      }
+      const data = await res.json();
+      return data.url as string;
+    } catch (err) {
+      console.error("Image upload error:", err);
+      return null;
+    }
+  };
+
+  /* ── Paste handler ──────────────────────────────────── */
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        addImages(files);
+      }
+    },
+    [addImages]
+  );
+
+  /* ── Drag & drop (chat panel only) ──────────────────── */
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const files: File[] = [];
+      if (e.dataTransfer.files) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          files.push(e.dataTransfer.files[i]);
+        }
+      }
+      addImages(files);
+    },
+    [addImages]
+  );
+
+  /* ── Send message ───────────────────────────────────── */
+
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && pendingImages.length === 0) || loading) return;
 
-    const userMsg: Message = { role: "user", content: text };
+    setLoading(true);
+
+    // Upload pending images
+    const uploadedUrls: string[] = [];
+    for (const img of pendingImages) {
+      const url = await uploadImage(img.file);
+      if (url) uploadedUrls.push(url);
+    }
+    pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setPendingImages([]);
+
+    const userMsg: Message = {
+      role: "user",
+      content: text || (uploadedUrls.length > 0 ? "Here's an image for my store page." : ""),
+      ...(uploadedUrls.length > 0 && { images: uploadedUrls }),
+    };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
-    setLoading(true);
 
     try {
       const res = await fetch("/api/assistant/chat", {
@@ -175,10 +302,8 @@ export default function StoreBuilder({
       const updatedMessages = [...newMessages, assistantMsg];
       setMessages(updatedMessages);
 
-      // If the response includes HTML, update the preview
       if (data.hasHTML) {
         if (data.truncated) {
-          // AI response was cut off — warn user, don't overwrite preview
           setMessages([...updatedMessages, {
             role: "assistant",
             content: "⚠️ My response was cut off before I finished the page. Your current page was NOT overwritten. Try asking me again with a simpler request, or ask me to make smaller changes."
@@ -208,10 +333,7 @@ export default function StoreBuilder({
     }
   };
 
-  const inputStyle = {
-    border: "1px solid var(--border)",
-    background: "var(--bg)",
-  };
+  /* ── Render ─────────────────────────────────────────── */
 
   return (
     <main className="flex flex-col" style={{ height: "calc(100vh - 56px)" }}>
@@ -263,14 +385,49 @@ export default function StoreBuilder({
 
         {/* Chat panel */}
         <div
-          className="flex flex-col"
+          className="flex flex-col relative"
           style={{
             width: "380px",
             minWidth: "380px",
             borderLeft: "1px solid var(--border)",
             background: "var(--bg-card)",
           }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
+          {/* Drag overlay */}
+          {dragOver && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 50,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+                borderRadius: 0,
+              }}
+            >
+              <div
+                style={{
+                  background: "var(--bg-card)",
+                  borderRadius: 16,
+                  padding: "24px 36px",
+                  border: "3px dashed var(--accent)",
+                  textAlign: "center",
+                }}
+              >
+                <p style={{ fontSize: 28, margin: 0 }}>🖼️</p>
+                <p style={{ color: "var(--text)", fontWeight: 600, marginTop: 6, fontSize: 13 }}>
+                  Drop image here
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Chat header */}
           <div
             className="px-4 py-3 flex items-center gap-2"
@@ -311,6 +468,25 @@ export default function StoreBuilder({
                   border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
                 }}
               >
+                {/* Show attached images in user messages */}
+                {msg.images && msg.images.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {msg.images.map((url, j) => (
+                      <img
+                        key={j}
+                        src={url}
+                        alt="Attached"
+                        style={{
+                          maxWidth: 120,
+                          maxHeight: 90,
+                          borderRadius: 6,
+                          objectFit: "cover",
+                          border: "2px solid rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
                 {msg.role === "assistant" ? (
                   <div className="text-xs leading-relaxed whitespace-pre-wrap">
                     {msg.content.includes("<!DOCTYPE") || msg.content.includes("```html")
@@ -339,23 +515,109 @@ export default function StoreBuilder({
             <div ref={chatEndRef} />
           </div>
 
+          {/* Pending image previews */}
+          {pendingImages.length > 0 && (
+            <div
+              className="flex gap-2 px-3 py-2 overflow-x-auto shrink-0"
+              style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}
+            >
+              {pendingImages.map((img, i) => (
+                <div key={i} className="relative shrink-0">
+                  <img
+                    src={img.preview}
+                    alt="Pending upload"
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 6,
+                      objectFit: "cover",
+                      border: "2px solid var(--border)",
+                    }}
+                  />
+                  <button
+                    onClick={() => removeImage(i)}
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#e53e3e",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                    }}
+                    title="Remove"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Input */}
           <div className="px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-end">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    addImages(Array.from(e.target.files));
+                    e.target.value = "";
+                  }
+                }}
+              />
+              {/* Image upload button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                className="shrink-0 rounded-lg cursor-pointer disabled:opacity-40"
+                style={{
+                  background: "var(--bg)",
+                  border: "1px solid var(--border)",
+                  width: 36,
+                  height: 36,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  color: "var(--text-muted)",
+                }}
+                title="Attach image (or paste / drag-drop)"
+              >
+                📎
+              </button>
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Tell me what to build..."
+                onPaste={handlePaste}
+                placeholder={
+                  pendingImages.length > 0
+                    ? "Tell me where to put the image..."
+                    : "Tell me what to build..."
+                }
                 rows={2}
                 className="flex-1 px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                style={inputStyle}
+                style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
                 disabled={loading}
               />
               <button
                 onClick={sendMessage}
-                disabled={loading || !input.trim()}
+                disabled={loading || (!input.trim() && pendingImages.length === 0)}
                 className="px-3 rounded-lg border-none cursor-pointer disabled:opacity-40 self-end"
                 style={{ background: "var(--accent)", color: "var(--text-inverse)", height: "36px" }}
               >
