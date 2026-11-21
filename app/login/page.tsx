@@ -134,6 +134,12 @@ function LoginContent() {
               />
             </div>
 
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
