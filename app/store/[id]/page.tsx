@@ -105,7 +105,7 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
         </div>
         <iframe
           srcDoc={storeContent}
-          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-top-navigation-by-user-activation"
           className="w-full h-full border-none"
           title={storeName}
         />
