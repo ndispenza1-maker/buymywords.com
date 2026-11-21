@@ -4,6 +4,16 @@ import NavBar from "@/components/NavBar";
 import { notFound } from "next/navigation";
 import StoreBuilder from "@/components/StoreBuilder";
 
+function toHttpsUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -66,6 +76,7 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
   const storeDescription = store.store_description as string | null;
   const storeType = store.store_type as string;
   const externalUrl = store.external_url as string | null;
+  const safeExternalUrl = toHttpsUrl(externalUrl);
   const storeContent = store.store_content as string | null;
   const displayName = store.display_name as string;
   const avatarUrl = store.avatar_url as string | null;
@@ -94,7 +105,7 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
         </div>
         <iframe
           srcDoc={storeContent}
-          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-top-navigation-by-user-activation"
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
           className="w-full h-full border-none"
           title={storeName}
         />
@@ -139,9 +150,9 @@ function StoreVisitorView({ store }: { store: Record<string, unknown> }) {
               {storeDescription}
             </p>
           )}
-          {storeType === "existing" && externalUrl && (
+          {storeType === "existing" && safeExternalUrl && (
             <a
-              href={externalUrl}
+              href={safeExternalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full text-sm font-semibold no-underline"

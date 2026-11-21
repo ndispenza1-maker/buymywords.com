@@ -2,6 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
+function toHttpsUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ── Types ────────────────────────────────────────────── */
 
 type ImageAttachment = {
@@ -53,14 +63,15 @@ export default function StoreBuilder({
   const panelRef = useRef<HTMLDivElement>(null);
 
   // For connected projects, show a different view
-  if (storeType === "existing" && externalUrl) {
+  if (storeType === "existing" && toHttpsUrl(externalUrl)) {
+    const safeExternalUrl = toHttpsUrl(externalUrl)!;
     return (
       <main className="max-w-3xl mx-auto px-6 py-8">
         <div className="rounded-2xl p-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>{storeName}</h2>
           <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Connected project</p>
           <a
-            href={externalUrl}
+            href={safeExternalUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold no-underline"
@@ -370,7 +381,7 @@ export default function StoreBuilder({
           {preview ? (
             <iframe
               srcDoc={preview}
-              sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-top-navigation-by-user-activation"
+              sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
               className="w-full h-full border-none"
               title="Store Preview"
             />

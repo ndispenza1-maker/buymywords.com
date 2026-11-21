@@ -43,6 +43,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "External URL is required for existing projects" }, { status: 400 });
   }
 
+  if (store_type === "existing" && external_url) {
+    let parsed: URL;
+    try {
+      parsed = new URL(String(external_url).trim());
+    } catch {
+      return NextResponse.json(
+        { error: "That doesn't look like a full URL. Include https:// at the start." },
+        { status: 400 }
+      );
+    }
+    if (parsed.protocol !== "https:") {
+      return NextResponse.json(
+        { error: "Store links must start with https://" },
+        { status: 400 }
+      );
+    }
+  }
+
   const sql = getSQL();
 
   // Check user is a store owner
