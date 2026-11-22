@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
+import { isArchetype, normalizeArchetype, getStarterHTML, type StoreArchetype } from "@/lib/store-templates";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
@@ -11,10 +12,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile already built" }, { status: 400 });
   }
 
-  const { account_type, bio, pending, founders, store_name, store_type, store_description } = await request.json();
+  const { account_type, bio, pending, founders, store_name, store_type, store_description, store_archetype } = await request.json();
 
   if (!account_type || !["shopper", "store_owner"].includes(account_type)) {
     return NextResponse.json({ error: "Invalid account type" }, { status: 400 });
+  }
+
+  if (store_archetype !== undefined && store_archetype !== null && !isArchetype(store_archetype)) {
+    return NextResponse.json({ error: "Invalid store archetype" }, { status: 400 });
   }
 
   const sql = getSQL();
@@ -46,14 +51,18 @@ export async function POST(request: NextRequest) {
       const sType = store_type || "existing";
       const sName = store_name.slice(0, 60);
       const assistantOn = true; // All founders get the assistant
+      const sArchetype: StoreArchetype = sType === "fresh" ? normalizeArchetype(store_archetype || "service") : "blank";
+      const starterHTML = sType === "fresh" ? getStarterHTML(sArchetype, sName, desc) : null;
       await sql`
-        INSERT INTO stores (user_id, store_name, store_description, store_type, assistant_enabled)
-        VALUES (${user.id}, ${sName}, ${desc}, ${sType}, ${assistantOn})
+        INSERT INTO stores (user_id, store_name, store_description, store_type, assistant_enabled, store_archetype, store_content)
+        VALUES (${user.id}, ${sName}, ${desc}, ${sType}, ${assistantOn}, ${sArchetype}, ${starterHTML})
         ON CONFLICT (user_id) DO UPDATE SET
           store_name = ${sName},
           store_description = ${desc},
           store_type = ${sType},
-          assistant_enabled = ${assistantOn}
+          assistant_enabled = ${assistantOn},
+          store_archetype = ${sArchetype},
+          store_content = COALESCE(stores.store_content, ${starterHTML})
       `;
     }
 

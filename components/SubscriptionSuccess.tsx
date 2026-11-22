@@ -8,6 +8,7 @@ interface PendingStore {
   store_name: string;
   store_description: string | null;
   external_url: string | null;
+  store_archetype?: string | null;
 }
 
 /**
@@ -42,6 +43,7 @@ export default function SubscriptionSuccess() {
           store_description: data.store_description || null,
           store_type: data.store_type,
           external_url: data.store_type === "existing" ? data.external_url : null,
+          store_archetype: data.store_type === "fresh" ? data.store_archetype || "service" : null,
         }),
       });
 
@@ -87,6 +89,7 @@ export default function SubscriptionSuccess() {
           store_name: "",
           store_description: null,
           external_url: null,
+          store_archetype: null,
         };
       }
     }

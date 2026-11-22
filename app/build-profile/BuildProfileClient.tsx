@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ARCHETYPES } from "@/lib/store-templates";
 
 export default function BuildProfileClient({
   userId,
@@ -20,6 +21,7 @@ export default function BuildProfileClient({
   const [storeName, setStoreName] = useState("");
   const [storeDesc, setStoreDesc] = useState("");
   const [storeType, setStoreType] = useState<"existing" | "fresh" | null>(null);
+  const [archetype, setArchetype] = useState<string>("service");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [subLoading, setSubLoading] = useState(false);
@@ -70,6 +72,7 @@ export default function BuildProfileClient({
         store_name: storeName.trim(),
         store_description: storeDesc.trim(),
         store_type: storeType,
+        store_archetype: storeType === "fresh" ? archetype : null,
         founders: true,
       }),
     });
@@ -263,6 +266,36 @@ export default function BuildProfileClient({
                 </div>
               </button>
             </div>
+
+            {storeType === "fresh" && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
+                  What are you selling?
+                </label>
+                <div className="space-y-2">
+                  {ARCHETYPES.map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => { setArchetype(a.key); setError(""); }}
+                      className="w-full text-left p-3 rounded-xl cursor-pointer transition-all"
+                      style={{
+                        background: "var(--bg)",
+                        border: archetype === a.key ? "2px solid var(--accent)" : "1px solid var(--border)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{a.emoji}</span>
+                        <div>
+                          <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{a.label}</p>
+                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{a.blurb}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Project Name */}
             <div className="mb-4">

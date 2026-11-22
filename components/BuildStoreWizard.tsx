@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useWizard } from "./WizardContext";
+import { ARCHETYPES } from "@/lib/store-templates";
 
 type StoreType = "existing" | "fresh" | null;
 type Step = "choose" | "setup" | "pricing";
@@ -13,6 +14,7 @@ export default function BuildStoreWizard() {
   const [storeName, setStoreName] = useState("");
   const [storeDescription, setStoreDescription] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
+  const [archetype, setArchetype] = useState<string>("service");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +27,7 @@ export default function BuildStoreWizard() {
     setStoreName("");
     setStoreDescription("");
     setExternalUrl("");
+    setArchetype("service");
     setError("");
   };
 
@@ -62,6 +65,7 @@ export default function BuildStoreWizard() {
       store_description: storeDescription.trim() || null,
       store_type: storeType,
       external_url: storeType === "existing" ? externalUrl.trim() : null,
+      store_archetype: storeType === "fresh" ? archetype : null,
     };
     localStorage.setItem("mall_pending_store", JSON.stringify(storeData));
 
@@ -213,6 +217,43 @@ export default function BuildStoreWizard() {
                   style={inputStyle}
                 />
               </div>
+
+              {storeType === "fresh" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+                    What are you selling?
+                  </label>
+                  <div className="space-y-2">
+                    {ARCHETYPES.map((a) => (
+                      <button
+                        key={a.key}
+                        type="button"
+                        onClick={() => setArchetype(a.key)}
+                        className="w-full p-3 rounded-lg text-left cursor-pointer transition-all"
+                        style={{
+                          background: "var(--bg)",
+                          border: archetype === a.key ? "2px solid var(--accent)" : "1px solid var(--border)",
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{a.emoji}</span>
+                          <div>
+                            <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                              {a.label}
+                            </p>
+                            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                              {a.blurb}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] mt-2" style={{ color: "var(--text-muted)" }}>
+                    This picks your starter page. You can change it later in chat.
+                  </p>
+                </div>
+              )}
 
               {storeType === "existing" && (
                 <div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
+import { isArchetype, normalizeArchetype, getStarterHTML, type StoreArchetype } from "@/lib/store-templates";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const { store_name, store_description, store_type, external_url } = body;
+  const { store_name, store_description, store_type, external_url, store_archetype } = body;
 
   if (!store_name || !store_type) {
     return NextResponse.json({ error: "Store name and type are required" }, { status: 400 });
@@ -61,6 +62,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Archetype creates the starter template. Only "fresh" stores use it.
+  if (store_archetype !== undefined && store_archetype !== null && !isArchetype(store_archetype)) {
+    return NextResponse.json({ error: "Invalid store archetype" }, { status: 400 });
+  }
+
+  let archetype: StoreArchetype = "blank";
+  if (store_type === "fresh") {
+    // Default to the service template — the blue-collar lane is the beachhead.
+    archetype = store_archetype ? normalizeArchetype(store_archetype) : "service";
+  }
+
   const sql = getSQL();
 
   // Check user is a store owner
@@ -74,10 +86,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Create store — all paying store owners get the assistant
+  const starterHTML =
+    store_type === "fresh" ? getStarterHTML(archetype, store_name, store_description || null) : "";
+
   try {
     const stores = await sql`
-      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled)
-      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, true)
+      INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled, store_archetype, store_content)
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, true, ${archetype}, ${starterHTML || null})
       RETURNING id
     `;
 

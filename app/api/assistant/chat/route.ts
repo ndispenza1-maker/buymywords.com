@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
 import { isRateLimited } from "@/lib/security";
+import { getArchetypePrompt, getStarterHTML, normalizeArchetype } from "@/lib/store-templates";
 
 // LLM calls can be slow
 export const maxDuration = 60;
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
 
   // Verify this user owns this store
   const stores = await sql`
-    SELECT id, store_name, store_description, store_content
+    SELECT id, store_name, store_description, store_content, store_archetype
     FROM stores WHERE id = ${store_id} AND user_id = ${userId}
   `;
 
@@ -194,13 +195,28 @@ export async function POST(req: NextRequest) {
 
   const store = stores[0];
   const currentPage = (store.store_content as string) || "";
+  const archetype = normalizeArchetype(store.store_archetype);
+  const archetypePrompt = getArchetypePrompt(archetype);
+
+  // Fresh store with no page yet: hand the model the archetype's starter template
+  // to EDIT, instead of asking it to invent a layout from nothing.
+  const starter =
+    !currentPage && archetype !== "blank"
+      ? getStarterHTML(archetype, store.store_name as string, store.store_description as string | null)
+      : "";
+
+  const pageToEdit = currentPage || starter;
 
   // Build context-aware system prompt
-  const pageContext = currentPage
-    ? `\n\nCURRENT PAGE HTML (this is what visitors see right now — modify this when the user asks for changes):\n\`\`\`html\n${currentPage}\n\`\`\``
+  const pageContext = pageToEdit
+    ? `\n\nCURRENT PAGE HTML (this is what visitors see right now — modify this when the user asks for changes):\n\`\`\`html\n${pageToEdit}\n\`\`\`${
+        starter
+          ? "\n\nThis is your archetype's STARTER TEMPLATE, not the owner's finished page. Personalize it: fill the dashed placeholder blocks with real details from the owner, and replace its example copy with their words. Keep the structure. Never leave a placeholder block in place once you have the real answer."
+          : ""
+      }`
     : "\n\nThe store page is currently blank. When ready, build the first version.";
 
-  const contextPrompt = `${SYSTEM_PROMPT}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}${pageContext}`;
+  const contextPrompt = `${SYSTEM_PROMPT}\n\n${archetypePrompt}\n\nStore name: "${store.store_name}"\n${store.store_description ? `Store description: "${store.store_description}"` : ""}${pageContext}`;
 
   // Only send last 6 messages to avoid context bloat — the current page is in the system prompt
   const recentMessages = messages.slice(-6);
