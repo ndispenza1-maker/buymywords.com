@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, PRICE_TIERS } from "@/lib/stripe";
+import { LETTY_PRICE_CENTS, grantPaidCredit, recordPurchase } from "@/lib/letty-challenge";
 import { getSQL } from "@/lib/db";
 import Stripe from "stripe";
 
@@ -39,6 +40,13 @@ export async function POST(request: NextRequest) {
       const tier = session.metadata?.tier;
       const subscriptionId = session.subscription as string;
       const customerId = session.customer as string;
+
+      // Letty's Challenge: $1.99 one-time try. Idempotent with the return-trip verify.
+      if (userId && session.metadata?.kind === "letty_credit" && session.payment_status === "paid") {
+        const firstTime = await recordPurchase(session.id, userId, session.amount_total ?? LETTY_PRICE_CENTS);
+        if (firstTime) await grantPaidCredit(userId);
+        break;
+      }
 
       if (userId && subscriptionId) {
         // Get the subscription to find the price
