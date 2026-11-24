@@ -5,6 +5,7 @@ import ProfileLink from "@/components/ProfileLink";
 import UnreadDot from "@/components/UnreadDot";
 import SubscriptionSuccess from "@/components/SubscriptionSuccess";
 import StoreLeaderboard from "@/components/StoreLeaderboard";
+import LettyChallenge from "@/components/LettyChallenge";
 import { Suspense } from "react";
 
 
@@ -126,6 +127,10 @@ export default async function HomePage() {
 
           {/* Center feed */}
           <main className="flex-1 max-w-xl">
+            {/* Mobile / tablet: the challenge box lives above the feed, rules included. */}
+            <div className="xl:hidden mb-4">
+              <LettyChallenge variant="card" signedIn={Boolean(user)} />
+            </div>
             <FeedClient
               currentUserId={user?.id || null}
               profileComplete={user?.profile_complete ?? false}
@@ -137,6 +142,7 @@ export default async function HomePage() {
           {/* Right sidebar */}
           <aside className="hidden xl:block w-72 shrink-0">
             <div className="sticky top-20 space-y-4">
+              <LettyChallenge variant="rail" signedIn={Boolean(user)} />
               <StoreLeaderboard />
               <div
                 className="rounded-xl p-4"
