@@ -9,11 +9,15 @@ import {
   LETTY_EMAIL,
   LETTY_USER_ID,
   MAX_IDEA_CHARS,
+  MAX_SESSION_TURNS,
+  buildMessages,
   formatChallengePost,
+  formatChallengeThread,
   msUntilFree,
   resolveIdentity,
   splitResultMarker,
   type ChallengeResult,
+  type ThreadItem,
 } from "@/lib/letty-rules";
 
 export {
@@ -24,7 +28,9 @@ export {
   LETTY_USER_ID,
   LETTY_PRICE_CENTS,
   MAX_IDEA_CHARS,
+  MAX_SESSION_TURNS,
   formatChallengePost,
+  formatChallengeThread,
   hashIp,
   resolveIdentity,
   splitResultMarker,
@@ -137,6 +143,8 @@ export async function ensureChallengeSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_letty_challenges_identity ON letty_challenges (identity_key, created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_letty_challenges_result ON letty_challenges (result)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_letty_challenges_ip ON letty_challenges (ip_hash, created_at DESC)`;
+  await sql`ALTER TABLE letty_challenges ADD COLUMN IF NOT EXISTS turns INTEGER NOT NULL DEFAULT 1`;
+  await sql`ALTER TABLE letty_challenges ADD COLUMN IF NOT EXISTS thread JSONB`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS letty_credits (
@@ -350,7 +358,10 @@ export async function getCounters(): Promise<ChallengeCounters> {
   };
 }
 
-export async function callLetty(idea: string): Promise<{ reply: string; result: ChallengeResult; inputTokens: number; outputTokens: number } | null> {
+export async function callLetty(
+  idea: string,
+  prior: ThreadItem[] = []
+): Promise<{ reply: string; result: ChallengeResult; inputTokens: number; outputTokens: number } | null> {
   const apiKey = process.env.MALL_CLAUDE_API_KEY;
   if (!apiKey) return null;
 
@@ -366,7 +377,7 @@ export async function callLetty(idea: string): Promise<{ reply: string; result: 
         model: LETTY_MODEL,
         max_tokens: LETTY_MAX_TOKENS,
         system: LETTY_RING_PROMPT,
-        messages: [{ role: "user", content: idea }],
+        messages: buildMessages(idea, prior),
       }),
     });
 
@@ -397,20 +408,68 @@ export async function createChallengeRow(params: {
   result: ChallengeResult;
   inputTokens: number;
   outputTokens: number;
+  thread?: ThreadItem[];
+  turns?: number;
 }): Promise<string> {
   await ensureChallengeSchema();
   const sql = getSQL();
   const rows = await sql`
     INSERT INTO letty_challenges
-      (identity_key, user_id, visitor_id, ip_hash, idea, response, result, model, input_tokens, output_tokens)
+      (identity_key, user_id, visitor_id, ip_hash, idea, response, result, model, input_tokens, output_tokens, thread, turns)
     VALUES (
       ${params.identityKey}, ${params.userId}, ${params.visitorId}, ${params.ipHash},
       ${params.idea}, ${params.response}, ${params.result}, ${LETTY_MODEL},
-      ${params.inputTokens}, ${params.outputTokens}
+      ${params.inputTokens}, ${params.outputTokens},
+      ${JSON.stringify(params.thread ?? [{ role: "user", text: params.idea }, { role: "letty", text: params.response }])},
+      ${params.turns ?? 1}
     )
     RETURNING id
   `;
   return rows[0].id as string;
+}
+
+export interface ChallengeRow {
+  id: string;
+  identity_key: string;
+  idea: string;
+  response: string | null;
+  result: string;
+  turns: number;
+  thread: ThreadItem[] | null;
+  posted_post_id: string | null;
+}
+
+export async function getChallengeRow(id: string, identityKey: string): Promise<ChallengeRow | null> {
+  await ensureChallengeSchema();
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT id, identity_key, idea, response, result, turns, thread, posted_post_id
+    FROM letty_challenges WHERE id = ${id} AND identity_key = ${identityKey} LIMIT 1
+  `;
+  return (rows[0] as ChallengeRow | undefined) ?? null;
+}
+
+export async function appendTurn(params: {
+  id: string;
+  thread: ThreadItem[];
+  reply: string;
+  result: ChallengeResult;
+  inputTokens: number;
+  outputTokens: number;
+}): Promise<number> {
+  const sql = getSQL();
+  const turns = Math.ceil(params.thread.length / 2);
+  await sql`
+    UPDATE letty_challenges SET
+      response = ${params.reply},
+      result = ${params.result},
+      thread = ${JSON.stringify(params.thread)},
+      turns = ${turns},
+      input_tokens = input_tokens + ${params.inputTokens},
+      output_tokens = output_tokens + ${params.outputTokens}
+    WHERE id = ${params.id}
+  `;
+  return turns;
 }
 
 export async function postChallengeToMall(challengeId: string, identityKey: string): Promise<string | null> {
@@ -418,11 +477,11 @@ export async function postChallengeToMall(challengeId: string, identityKey: stri
   const sql = getSQL();
 
   const rows = await sql`
-    SELECT id, identity_key, idea, response, result, posted_post_id
+    SELECT id, identity_key, idea, response, result, posted_post_id, thread
     FROM letty_challenges WHERE id = ${challengeId} LIMIT 1
   `;
   const row = rows[0] as
-    | { id: string; identity_key: string; idea: string; response: string | null; result: string; posted_post_id: string | null }
+    | { id: string; identity_key: string; idea: string; response: string | null; result: string; posted_post_id: string | null; thread: ThreadItem[] | null }
     | undefined;
 
   if (!row) return null;
@@ -431,7 +490,9 @@ export async function postChallengeToMall(challengeId: string, identityKey: stri
   if (!row.response) return null;
   if (row.posted_post_id) return row.posted_post_id;
 
-  const content = formatChallengePost(row.idea, row.response, row.result as ChallengeResult);
+  const content = row.thread && row.thread.length > 0
+    ? formatChallengeThread(row.thread, row.result as ChallengeResult)
+    : formatChallengePost(row.idea, row.response, row.result as ChallengeResult);
   const inserted = await sql`
     INSERT INTO posts (user_id, content)
     VALUES (${LETTY_USER_ID}, ${content})
