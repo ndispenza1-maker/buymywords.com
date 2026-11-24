@@ -14,42 +14,8 @@ export const LETTY_PRICE_CENTS = 199;
 export const MAX_IDEA_CHARS = 1000;
 export const FREE_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const FREE_PER_IP_MAX = 3;
-export const POST_LIMIT = 2000;
-
-/** One session = one thread. She gets three replies, then the doors lock. */
-export const MAX_SESSION_TURNS = 3;
 
 export type ChallengeResult = "held" | "conceded";
-
-export interface ThreadItem {
-  role: "user" | "letty";
-  text: string;
-}
-
-/** Render the whole exchange for the feed: challenger's lines and hers. */
-export function formatChallengeThread(thread: ThreadItem[], result: ChallengeResult): string {
-  const verdict =
-    result === "conceded"
-      ? "CONCEDED. The framework met its edge."
-      : "HELD. Love, Fear, and Hunger still cover it.";
-
-  const parts: string[] = [];
-  thread.forEach((t, i) => {
-    if (t.role === "user") {
-      parts.push(i === 0 ? `CHALLENGE — "${t.text.trim()}"` : `CHALLENGER: ${t.text.trim()}`);
-    } else {
-      parts.push(`${t.text.trim()}`);
-    }
-  });
-  const tail = `\n\n${verdict}`;
-  let body = parts.join("\n\n");
-
-  // Never truncate the verdict away — trim the middle of the argument instead.
-  if (body.length + tail.length > POST_LIMIT) {
-    body = `${body.slice(0, Math.max(0, POST_LIMIT - tail.length - 2)).trimEnd()}…`;
-  }
-  return body + tail;
-}
 
 export interface Identity {
   key: string;
@@ -92,25 +58,6 @@ export function splitResultMarker(text: string): { reply: string; result: Challe
 }
 
 /** The feed is plain text. Strip the markdown she reaches for anyway. */
-/** Alternating thread for the model. Never sends more than the session cap. */
-export function buildMessages(idea: string, prior: ThreadItem[] = []) {
-  const messages: { role: "user" | "assistant"; content: string }[] = [];
-  for (const t of prior.slice(-6)) {
-    const role = t.role === "letty" ? "assistant" : "user";
-    const content = (t.text || "").trim();
-    if (!content) continue;
-    if (messages.length && messages[messages.length - 1].role === role) {
-      messages[messages.length - 1].content += `\n${content}`;
-    } else {
-      messages.push({ role, content });
-    }
-  }
-  if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-    messages.push({ role: "user", content: idea });
-  }
-  return messages;
-}
-
 export function sanitizeReply(text: string): string {
   return text
     .replace(/^\s*[-*_]{3,}\s*$/gm, "")          // horizontal rules
@@ -123,6 +70,8 @@ export function sanitizeReply(text: string): string {
     .trim();
 }
 
+const POST_LIMIT = 2000;
+
 export function formatChallengePost(idea: string, reply: string, result: ChallengeResult): string {
   const verdict =
     result === "conceded"
@@ -132,6 +81,7 @@ export function formatChallengePost(idea: string, reply: string, result: Challen
   const tail = `\n\n${verdict}`;
   let body = reply.trim();
 
+  // Never truncate the verdict away — trim the middle of the argument instead.
   if (head.length + body.length + tail.length > POST_LIMIT) {
     body = `${body.slice(0, Math.max(0, POST_LIMIT - head.length - tail.length - 2)).trimEnd()}…`;
   }

@@ -17,21 +17,14 @@ interface Counters {
   throwers: number;
 }
 
-interface ThreadItem {
-  role: "user" | "letty";
-  text: string;
-}
-
 interface Answer {
   id: string;
   idea: string;
   reply: string;
   result: "held" | "conceded";
-  turns: number;
 }
 
 const PRICE = "$1.99";
-const MAX_TURNS = 3;
 const lettyAvatar = "/letty-avatar.svg";
 
 function getVisitorId(): string | null {
@@ -47,6 +40,17 @@ function getVisitorId(): string | null {
   }
 }
 
+function countdown(ms: number): string {
+  if (ms <= 0) return "now";
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
 export default function LettyChallenge({
   variant = "rail",
   signedIn = false,
@@ -59,15 +63,12 @@ export default function LettyChallenge({
   const [open, setOpen] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [idea, setIdea] = useState("");
-  const [replyText, setReplyText] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
-  const [thread, setThread] = useState<ThreadItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState<string | null>(null);
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const replyRef = useRef<HTMLTextAreaElement>(null);
 
   const refresh = useCallback(async () => {
     const vid = getVisitorId();
@@ -115,8 +116,6 @@ export default function LettyChallenge({
   }, [state?.nextFreeAt, state?.msUntilFree]);
 
   const msLeft = state ? Math.max(0, new Date(state.nextFreeAt || 0).getTime() - Date.now()) : 0;
-  const turns = answer?.turns ?? 0;
-  const sessionOver = turns >= MAX_TURNS;
 
   useEffect(() => {
     if (!open) return;
@@ -132,52 +131,30 @@ export default function LettyChallenge({
   }, [open]);
 
   useEffect(() => {
-    if (!open || thread.length > 0) return;
-    setTimeout(() => textareaRef.current?.focus(), 80);
-  }, [open, thread.length]);
-
-  async function send(text: string) {
-    const res = await fetch("/api/challenge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: text,
-        visitor_id: getVisitorId(),
-        challenge_id: answer?.id || undefined,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Something broke in the shop.");
-      if (data.state) setState(data.state);
-      return false;
+    if (open && !answer && state?.canPlay) {
+      setTimeout(() => textareaRef.current?.focus(), 80);
     }
-    setAnswer(data.challenge);
-    setThread(data.challenge.thread ?? []);
-    setState(data.state);
-    setCounters(data.counters);
-    return true;
-  }
+  }, [open, answer, state?.canPlay]);
 
   async function throwIt() {
     if (busy || idea.trim().length < 3) return;
     setBusy(true);
     setError(null);
     try {
-      if (await send(idea.trim())) setIdea("");
-    } catch {
-      setError("Something broke in the shop. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function reply() {
-    if (busy || replyText.trim().length < 2) return;
-    setBusy(true);
-    setError(null);
-    try {
-      if (await send(replyText.trim())) setReplyText("");
+      const res = await fetch("/api/challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea: idea.trim(), visitor_id: getVisitorId() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something broke in the shop.");
+        if (data.state) setState(data.state);
+        return;
+      }
+      setAnswer(data.challenge);
+      setState(data.state);
+      setCounters(data.counters);
     } catch {
       setError("Something broke in the shop. Try again.");
     } finally {
@@ -235,20 +212,24 @@ export default function LettyChallenge({
   function closeAll() {
     setOpen(false);
     setAnswer(null);
-    setThread([]);
     setIdea("");
-    setReplyText("");
     setPosted(null);
     setError(null);
     setShowRules(false);
     refresh();
   }
 
-  const boxClass = variant === "rail" ? "rounded-xl p-4" : "rounded-2xl p-4 sm:p-5";
+  const boxClass =
+    variant === "rail"
+      ? "rounded-xl p-4"
+      : "rounded-2xl p-4 sm:p-5";
 
   return (
     <>
-      <div className={boxClass} style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+      <div
+        className={boxClass}
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+      >
         <div className="flex items-start justify-between gap-2 mb-2">
           <p
             className="text-[10px] font-bold tracking-[0.15em] uppercase"
@@ -340,7 +321,9 @@ export default function LettyChallenge({
                 className="relative w-14 h-14 rounded-xl shrink-0 overflow-hidden"
                 style={{ background: "rgba(255,255,255,0.85)", color: "#2D2424" }}
               >
-                <span className="absolute inset-0 flex items-center justify-center text-xl font-black">L</span>
+                <span className="absolute inset-0 flex items-center justify-center text-xl font-black">
+                  L
+                </span>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={lettyAvatar}
@@ -387,7 +370,7 @@ export default function LettyChallenge({
                 <>
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      Name it. One session, up to three replies. Make them count.
+                      Name it. One throw. Make it count.
                     </p>
                     <button
                       type="button"
@@ -415,7 +398,11 @@ export default function LettyChallenge({
                         rows={4}
                         placeholder="Something you think can't reduce to Love, Fear, or Hunger."
                         className="w-full resize-none rounded-lg px-3 py-2.5 text-sm outline-none"
-                        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+                        style={{
+                          background: "var(--bg)",
+                          border: "1px solid var(--border)",
+                          color: "var(--text)",
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -444,13 +431,13 @@ export default function LettyChallenge({
                   ) : (
                     <div className="space-y-3">
                       <p className="text-sm" style={{ color: "var(--text)" }}>
-                        {state.reason === "off_the_clock"
+                        {state?.reason === "off_the_clock"
                           ? "Letty's off the clock this month. She'll be back."
-                          : state.reason === "ip_limit"
+                          : state?.reason === "ip_limit"
                             ? "That device has hit today's limit."
                             : "You've used today's free challenge."}
                       </p>
-                      {state.reason === "cooldown" && (
+                      {state?.reason === "cooldown" && (
                         <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                           Next free challenge in{" "}
                           <strong style={{ color: "var(--text)" }}>{countdown(msLeft)}</strong>
@@ -468,7 +455,7 @@ export default function LettyChallenge({
                     </div>
                   )}
                   <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    One free session per device every 24 hours. {PRICE} per extra session. Up to {MAX_TURNS} replies.
+                    One free challenge per device every 24 hours. {PRICE} per extra try.
                   </p>
                 </>
               )}
@@ -476,7 +463,10 @@ export default function LettyChallenge({
               {answer && (
                 <>
                   {posted ? (
-                    <div className="rounded-lg px-4 py-6 text-center space-y-1" style={{ background: "var(--accent-light)" }}>
+                    <div
+                      className="rounded-lg px-4 py-6 text-center space-y-1"
+                      style={{ background: "var(--accent-light)" }}
+                    >
                       <p className="text-sm font-bold" style={{ color: "var(--accent)" }}>
                         On The Mall.
                       </p>
@@ -486,58 +476,40 @@ export default function LettyChallenge({
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-3">
-                        {thread.map((t, i) =>
-                          t.role === "user" ? (
-                            <div
-                              key={i}
-                              className="rounded-lg p-3"
-                              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-                            >
-                              <p
-                                className="text-[9px] font-bold tracking-[0.15em] uppercase mb-1"
-                                style={{ color: "var(--text-muted)" }}
-                              >
-                                {i === 0 ? "Your challenge" : "You"}
-                              </p>
-                              <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-                                {t.text}
-                              </p>
-                            </div>
-                          ) : (
-                            <div
-                              key={i}
-                              className="rounded-lg p-3"
-                              style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-                            >
-                              <div className="flex items-center justify-between mb-1 gap-2">
-                                <p
-                                  className="text-[9px] font-bold tracking-[0.15em] uppercase"
-                                  style={{ color: "var(--accent)" }}
-                                >
-                                  🔧 Letty
-                                </p>
-                                {i === thread.length - 1 && (
-                                  <span
-                                    className="text-[9px] font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded"
-                                    style={{
-                                      background:
-                                        answer.result === "conceded"
-                                          ? "var(--sunset-gold, #F5D76E)"
-                                          : "var(--accent-light)",
-                                      color: answer.result === "conceded" ? "#2D2424" : "var(--accent)",
-                                    }}
-                                  >
-                                    {answer.result === "conceded" ? "Conceded" : "Held"}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "var(--text)" }}>
-                                {t.text}
-                              </p>
-                            </div>
-                          )
-                        )}
+                      <div className="rounded-lg p-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                        <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-1" style={{ color: "var(--text-muted)" }}>
+                          Your challenge
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text)" }}>
+                          {answer.idea}
+                        </p>
+                      </div>
+
+                      <div
+                        className="rounded-lg p-3"
+                        style={{
+                          background: "var(--bg)",
+                          borderLeft: "3px solid var(--accent)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <p className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: "var(--accent)" }}>
+                            🔧 Letty
+                          </p>
+                          <span
+                            className="text-[9px] font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded"
+                            style={{
+                              background: answer.result === "conceded" ? "var(--sunset-gold, #F5D76E)" : "var(--accent-light)",
+                              color: answer.result === "conceded" ? "#2D2424" : "var(--accent)",
+                            }}
+                          >
+                            {answer.result === "conceded" ? "Conceded" : "Held"}
+                          </span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "var(--text)" }}>
+                          {answer.reply}
+                        </p>
                       </div>
 
                       {answer.result === "conceded" && (
@@ -545,41 +517,6 @@ export default function LettyChallenge({
                           She met her edge. Post it — concessions get reviewed by hand, and the first five verified
                           cracks go on the wall.
                         </p>
-                      )}
-
-                      {sessionOver ? (
-                        <p className="text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                          Three replies. Session closed — post it or throw it out.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          <textarea
-                            ref={replyRef}
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value.slice(0, 1000))}
-                            rows={2}
-                            placeholder={`Reply ${turns + 1} of ${MAX_TURNS} — press her on it.`}
-                            className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
-                            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                reply();
-                              }
-                            }}
-                          />
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={reply}
-                              disabled={busy || replyText.trim().length < 2}
-                              className="px-4 py-1.5 rounded-full text-xs font-bold disabled:opacity-40"
-                              style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-                            >
-                              {busy ? "…" : "Send"}
-                            </button>
-                          </div>
-                        </div>
                       )}
 
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -599,7 +536,7 @@ export default function LettyChallenge({
                           className="px-4 py-2 rounded-full text-sm font-semibold disabled:opacity-50"
                           style={{ background: "var(--accent-light)", color: "var(--accent)" }}
                         >
-                          {signedIn ? `New session · ${PRICE}` : "New session · log in"}
+                          {signedIn ? `Try again · ${PRICE}` : "Try again · log in"}
                         </button>
                         <button
                           type="button"
@@ -622,29 +559,20 @@ export default function LettyChallenge({
   );
 }
 
-function countdown(ms: number): string {
-  if (ms <= 0) return "now";
-  const total = Math.floor(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
-}
-
 function RulesBlock() {
   const items = [
-    "One free session per device every 24 hours. The clock starts when your last session is spent.",
-    `Out of tries? ${PRICE} buys a new session. That's what keeps her free for everyone else.`,
-    "A session is up to three of her replies. Then it's post or discard — no open-ended arguing.",
+    "One free challenge per device every 24 hours. The clock starts when your last throw is spent.",
+    `Out of tries? ${PRICE} buys one more. That's what keeps her free for everyone else.`,
     "One throw at a time. Devices, accounts, and IPs are capped — no loops, no scripts.",
     "Letty doesn't give medical, legal, or financial advice. She argues about the framework.",
     "Anything you post lands on the Mall's public feed, under her name, with your words. Leave out personal details.",
     "If you're in crisis, call or text 988. She's a mechanic, not a hotline.",
   ];
   return (
-    <div className="rounded-lg p-3 space-y-1.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+    <div
+      className="rounded-lg p-3 space-y-1.5 mb-3"
+      style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+    >
       <p className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
         House rules
       </p>

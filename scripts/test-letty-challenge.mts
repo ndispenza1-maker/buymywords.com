@@ -7,11 +7,8 @@ import {
   FREE_WINDOW_MS,
   LETTY_PRICE_CENTS,
   MAX_IDEA_CHARS,
-  MAX_SESSION_TURNS,
-  buildMessages,
   countdownLabel,
   formatChallengePost,
-  formatChallengeThread,
   hashIp,
   msUntilFree,
   normalizeVisitorId,
@@ -98,6 +95,7 @@ const longReply = "r".repeat(1400);
 const long = formatChallengePost(longIdea, longReply, "held");
 ok(long.length <= 2000, "post never exceeds the 2000-char store limit");
 ok(long.endsWith("HELD. Love, Fear, and Hunger still cover it."), "verdict survives truncation of a single exchange");
+ok(long.length <= 2000, "single-exchange post capped at 2000");
 eq(formatChallengePost("  spaced  ", " reply ", "held").includes('"spaced"'), true, "idea trimmed in post");
 
 /* ── markdown stripping (feed is plain text) ── */
@@ -110,60 +108,6 @@ eq(sanitizeReply("a\n\n\n\nb"), "a\n\nb", "blank lines collapsed");
 eq(sanitizeReply("plain shop talk, no styling"), "plain shop talk, no styling", "plain text untouched");
 eq(sanitizeReply("  padded  "), "padded", "reply trimmed");
 eq(splitResultMarker("**bold** answer [[CONCEDED]]").reply, "bold answer", "marker and markdown cleaned together");
-
-/* ── session cap ── */
-eq(MAX_SESSION_TURNS, 3, "three replies per session");
-
-/* ── thread building for the model ── */
-const t1 = buildMessages("free will", []);
-eq(t1.length, 1, "first throw sends one message");
-eq(t1[0].role, "user", "first message is the user");
-eq(t1[0].content, "free will", "first message carries the idea");
-
-const prior = [
-  { role: "user" as const, text: "free will" },
-  { role: "letty" as const, text: "That's Hunger in a coat." },
-];
-const t2 = buildMessages("no it isn't", prior);
-eq(t2.length, 3, "continuation sends prior turns plus the new one");
-eq(t2.map((m) => m.role), ["user", "assistant", "user"], "roles alternate");
-eq(t2[2].content, "no it isn't", "new message appends last");
-
-const merged = buildMessages("second", [
-  { role: "user" as const, text: "first" },
-  { role: "user" as const, text: "second" },
-]);
-eq(merged.length, 1, "back-to-back user turns merge instead of breaking alternation");
-ok(merged[0].content.includes("first") && merged[0].content.includes("second"), "merged content keeps both");
-
-const trailing = buildMessages("third", [
-  { role: "user" as const, text: "a" },
-  { role: "letty" as const, text: "b" },
-  { role: "user" as const, text: "c" },
-]);
-eq(trailing[trailing.length - 1].role, "user", "never ends on an assistant message");
-
-const capped = buildMessages("x", Array.from({ length: 20 }, (_, i) => ({
-  role: (i % 2 === 0 ? "user" : "letty") as "user" | "letty",
-  text: `m${i}`,
-})));
-ok(capped.length <= 7, "history is capped before sending");
-
-/* ── thread formatting for the feed ── */
-const fs = formatChallengeThread([
-  { role: "user", text: "free will" },
-  { role: "letty", text: "Hunger in a coat." },
-  { role: "user", text: "that's not an answer" },
-  { role: "letty", text: "It is. Sit down." },
-], "held");
-ok(fs.startsWith('CHALLENGE — "free will"'), "thread opens with the challenge");
-ok(fs.includes("CHALLENGER: that's not an answer"), "follow-up is labeled");
-ok(fs.includes("It is. Sit down."), "final reply included");
-ok(fs.includes("HELD."), "verdict appended");
-const oversized = formatChallengeThread([{ role: "letty", text: "r".repeat(4000) }], "held");
-ok(oversized.length <= 2000, "thread post capped at 2000");
-ok(oversized.endsWith("HELD. Love, Fear, and Hunger still cover it."), "verdict survives truncation");
-ok(oversized.includes("\u2026"), "truncation is marked");
 
 /* ── report ── */
 if (failures.length > 0) {
