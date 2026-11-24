@@ -385,7 +385,11 @@ export default function LettyChallenge({
 
                   {showRules && <RulesBlock />}
 
-                  {state?.canPlay ? (
+                  {!state ? (
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      Warming up the shop…
+                    </p>
+                  ) : state.canPlay ? (
                     <>
                       <textarea
                         ref={textareaRef}

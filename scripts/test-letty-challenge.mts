@@ -13,6 +13,7 @@ import {
   msUntilFree,
   normalizeVisitorId,
   resolveIdentity,
+  sanitizeReply,
   splitResultMarker,
 } from "../lib/letty-rules.ts";
 
@@ -95,6 +96,17 @@ const long = formatChallengePost(longIdea, longReply, "held");
 ok(long.length <= 2000, "post never exceeds the 2000-char store limit");
 ok(long.endsWith("…"), "truncated post is marked");
 eq(formatChallengePost("  spaced  ", " reply ", "held").includes('"spaced"'), true, "idea trimmed in post");
+
+/* ── markdown stripping (feed is plain text) ── */
+eq(sanitizeReply("**FEAR** — first and fast."), "FEAR — first and fast.", "bold stripped");
+eq(sanitizeReply("a\n---\nb"), "a\n\nb", "horizontal rule dropped");
+eq(sanitizeReply("## Heading\nbody"), "Heading\nbody", "heading marks dropped");
+eq(sanitizeReply("keep *this* word"), "keep this word", "italics stripped");
+eq(sanitizeReply("`code`"), "code", "inline code unwrapped");
+eq(sanitizeReply("a\n\n\n\nb"), "a\n\nb", "blank lines collapsed");
+eq(sanitizeReply("plain shop talk, no styling"), "plain shop talk, no styling", "plain text untouched");
+eq(sanitizeReply("  padded  "), "padded", "reply trimmed");
+eq(splitResultMarker("**bold** answer [[CONCEDED]]").reply, "bold answer", "marker and markdown cleaned together");
 
 /* ── report ── */
 if (failures.length > 0) {

@@ -53,8 +53,21 @@ export function splitResultMarker(text: string): { reply: string; result: Challe
   const match = text.match(/\[\[(HELD|CONCEDED)\]\]/i);
   const result: ChallengeResult =
     match && match[1].toUpperCase() === "CONCEDED" ? "conceded" : "held";
-  const reply = text.replace(/\[\[(HELD|CONCEDED)\]\]/gi, "").trim();
+  const reply = sanitizeReply(text.replace(/\[\[(HELD|CONCEDED)\]\]/gi, ""));
   return { reply, result };
+}
+
+/** The feed is plain text. Strip the markdown she reaches for anyway. */
+export function sanitizeReply(text: string): string {
+  return text
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")          // horizontal rules
+    .replace(/^\s*#{1,6}\s*/gm, "")              // heading marks
+    .replace(/\*\*([^*]+)\*\*/g, "$1")           // bold
+    .replace(/__([^_]+)__/g, "$1")                  // bold alt
+    .replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, "$1$2") // italics
+    .replace(/`([^`]+)`/g, "$1")                    // inline code
+    .replace(/\n{3,}/g, "\n\n")                    // runaway blank lines
+    .trim();
 }
 
 const POST_LIMIT = 2000;

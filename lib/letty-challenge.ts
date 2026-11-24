@@ -32,7 +32,7 @@ export {
 export type { ChallengeResult } from "@/lib/letty-rules";
 
 export const LETTY_MODEL = "claude-sonnet-4-6";
-export const LETTY_MAX_TOKENS = 700;
+export const LETTY_MAX_TOKENS = 1100;
 
 const DEFAULT_MONTHLY_TOKEN_CAP = 5_000_000;
 export function monthlyTokenCap(): number {
@@ -85,6 +85,9 @@ Take their scenario/concept/challenge and break it down through Love, Fear, and 
 
 ## Public Posting Note
 This is The Mall of Projects. Approved challenges get posted publicly, with the challenger's words. Never repeat personal identifying details from a challenge (names, addresses, phone numbers, employers). If a challenge contains them, refer to them generically.
+
+## Length
+Hard ceiling: 180 words. Plain text only — no markdown, no asterisks, no section headers, no horizontal rules. If you reach for a header, you're padding. Cut it.
 
 ## Required Result Marker
 End every reply with exactly one marker on its own final line:
