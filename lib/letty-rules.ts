@@ -41,10 +41,14 @@ export function formatChallengeThread(thread: ThreadItem[], result: ChallengeRes
       parts.push(`${t.text.trim()}`);
     }
   });
-  parts.push(verdict);
+  const tail = `\n\n${verdict}`;
+  let body = parts.join("\n\n");
 
-  const body = parts.join("\n\n");
-  return body.length > POST_LIMIT ? `${body.slice(0, POST_LIMIT - 1)}…` : body;
+  // Never truncate the verdict away — trim the middle of the argument instead.
+  if (body.length + tail.length > POST_LIMIT) {
+    body = `${body.slice(0, Math.max(0, POST_LIMIT - tail.length - 2)).trimEnd()}…`;
+  }
+  return body + tail;
 }
 
 export interface Identity {
@@ -124,8 +128,14 @@ export function formatChallengePost(idea: string, reply: string, result: Challen
     result === "conceded"
       ? "CONCEDED. The framework met its edge."
       : "HELD. Love, Fear, and Hunger still cover it.";
-  const body = `CHALLENGE — "${idea.trim()}"\n\n${reply.trim()}\n\n${verdict}`;
-  return body.length > POST_LIMIT ? `${body.slice(0, POST_LIMIT - 1)}…` : body;
+  const head = `CHALLENGE — "${idea.trim()}"\n\n`;
+  const tail = `\n\n${verdict}`;
+  let body = reply.trim();
+
+  if (head.length + body.length + tail.length > POST_LIMIT) {
+    body = `${body.slice(0, Math.max(0, POST_LIMIT - head.length - tail.length - 2)).trimEnd()}…`;
+  }
+  return head + body + tail;
 }
 
 /** Human countdown used by the box and the modal. */
