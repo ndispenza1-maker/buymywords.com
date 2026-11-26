@@ -85,14 +85,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Store already exists" }, { status: 409 });
   }
 
-  // Create store — all paying store owners get the assistant
+  // Create store — fresh stores get the assistant, connected projects are a link only
   const starterHTML =
     store_type === "fresh" ? getStarterHTML(archetype, store_name, store_description || null) : "";
+  const assistantOn = store_type === "fresh";
 
   try {
     const stores = await sql`
       INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled, store_archetype, store_content)
-      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, true, ${archetype}, ${starterHTML || null})
+      VALUES (${userId}, ${store_name}, ${store_description || null}, ${store_type}, ${external_url || null}, ${assistantOn}, ${archetype}, ${starterHTML || null})
       RETURNING id
     `;
 

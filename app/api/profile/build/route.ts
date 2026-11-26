@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
     if (store_name) {
       const desc = (store_description || bio || "").slice(0, 200);
       const sName = store_name.slice(0, 60);
-      const assistantOn = true; // All founders get the assistant
+      // Assistant belongs to fresh stores only — connected projects are just a link.
+      const assistantOn = sType === "fresh";
       const sArchetype: StoreArchetype = sType === "fresh" ? normalizeArchetype(store_archetype || "service") : "blank";
       const starterHTML = sType === "fresh" ? getStarterHTML(sArchetype, sName, desc) : null;
       await sql`
