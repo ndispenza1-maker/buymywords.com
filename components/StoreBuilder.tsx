@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 function toHttpsUrl(value: string | null): string | null {
   if (!value) return null;
@@ -62,25 +63,17 @@ export default function StoreBuilder({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // For connected projects, show a different view
-  if (storeType === "existing" && toHttpsUrl(externalUrl)) {
-    const safeExternalUrl = toHttpsUrl(externalUrl)!;
+  // Connected projects get their own view. This also covers stores created
+  // before the project URL was collected (external_url still NULL) — they get
+  // a one-field form instead of silently falling into the build-from-scratch
+  // assistant.
+  if (storeType === "existing") {
     return (
-      <main className="max-w-3xl mx-auto px-6 py-8">
-        <div className="rounded-2xl p-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-          <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>{storeName}</h2>
-          <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Connected project</p>
-          <a
-            href={safeExternalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold no-underline"
-            style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
-          >
-            🔗 Visit Project
-          </a>
-        </div>
-      </main>
+      <ConnectedProjectView
+        storeId={storeId}
+        storeName={storeName}
+        externalUrl={externalUrl}
+      />
     );
   }
 
@@ -737,6 +730,124 @@ export default function StoreBuilder({
             </button>
           </div>
         </div>
+      </div>
+    </main>
+  );
+}
+
+/* ── Connected (existing) project view ─────────────────── */
+
+function ConnectedProjectView({
+  storeId,
+  storeName,
+  externalUrl,
+}: {
+  storeId: string;
+  storeName: string;
+  externalUrl: string | null;
+}) {
+  const router = useRouter();
+  const safeExternalUrl = toHttpsUrl(externalUrl);
+  const [editing, setEditing] = useState(!safeExternalUrl);
+  const [url, setUrl] = useState(externalUrl || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/stores/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ store_id: storeId, external_url: url.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Couldn't save that link. Try again.");
+        setSaving(false);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Couldn't save that link. Try again.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <main className="max-w-3xl mx-auto px-6 py-8">
+      <div className="rounded-2xl p-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>{storeName}</h2>
+
+        {safeExternalUrl && !editing && (
+          <>
+            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Connected project</p>
+            <p className="text-xs mb-5 break-all" style={{ color: "var(--text-muted)" }}>{safeExternalUrl}</p>
+            <div className="flex items-center gap-3">
+              <a
+                href={safeExternalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold no-underline"
+                style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+              >
+                🔗 Visit Project
+              </a>
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs bg-transparent border-none cursor-pointer"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Change link
+              </button>
+            </div>
+          </>
+        )}
+
+        {editing && (
+          <>
+            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+              {safeExternalUrl
+                ? "Point this store at a different page."
+                : "This store was created without its link. Add it so shoppers can see your project."}
+            </p>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setError(""); }}
+              placeholder="https://your-project.com"
+              maxLength={2048}
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none mb-2"
+              style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+            />
+            <p className="text-[10px] mb-4" style={{ color: "var(--text-muted)" }}>
+              Must start with https://
+            </p>
+            {error && (
+              <p className="text-sm mb-3" style={{ color: "#E85D27" }}>{error}</p>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="px-4 py-2 rounded-full text-sm font-semibold border-none cursor-pointer disabled:opacity-50"
+                style={{ background: "var(--accent)", color: "var(--text-inverse)" }}
+              >
+                {saving ? "Saving..." : "Save link"}
+              </button>
+              {safeExternalUrl && (
+                <button
+                  onClick={() => { setEditing(false); setUrl(externalUrl || ""); setError(""); }}
+                  className="text-xs bg-transparent border-none cursor-pointer"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </main>
   );

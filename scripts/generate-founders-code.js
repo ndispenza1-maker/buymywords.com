@@ -10,6 +10,7 @@
  *   node scripts/generate-founders-code.js 5             # 5 codes
  *   node scripts/generate-founders-code.js 3 --uses 5    # 3 codes, 5 uses each
  *   node scripts/generate-founders-code.js --days 60 --note "VIP beta"
+ *   node scripts/generate-founders-code.js --lifetime      # access until 2099-12-31
  */
 
 const crypto = require("crypto");
@@ -29,11 +30,18 @@ let count = 1;
 let maxUses = 1;
 let durationDays = 30;
 let note = null;
+let lifetime = false;
+
+// Lifetime codes grant access through the end of 2099, matching the
+// original permanent founders codes (26700 days). Code itself never expires.
+const LIFETIME_DAYS = 26700;
+const LIFETIME_CODE_EXPIRES_AT = "2099-12-31T23:59:59Z";
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--uses" && args[i + 1]) { maxUses = parseInt(args[++i]); }
   else if (args[i] === "--days" && args[i + 1]) { durationDays = parseInt(args[++i]); }
   else if (args[i] === "--note" && args[i + 1]) { note = args[++i]; }
+  else if (args[i] === "--lifetime") { lifetime = true; }
   else if (!args[i].startsWith("--")) { count = parseInt(args[i]) || 1; }
 }
 
@@ -51,22 +59,33 @@ function hashCode(code) {
 }
 
 async function main() {
+  if (lifetime) durationDays = LIFETIME_DAYS;
+
   const codes = [];
 
   for (let i = 0; i < count; i++) {
     const code = generateCode();
     const hash = hashCode(code);
 
-    await sql`
-      INSERT INTO founders_codes (code_hash, max_uses, duration_days, note)
-      VALUES (${hash}, ${maxUses}, ${durationDays}, ${note})
-    `;
+    if (lifetime) {
+      await sql`
+        INSERT INTO founders_codes (code_hash, max_uses, duration_days, code_expires_at, note)
+        VALUES (${hash}, ${maxUses}, ${durationDays}, ${LIFETIME_CODE_EXPIRES_AT}, ${note})
+      `;
+    } else {
+      await sql`
+        INSERT INTO founders_codes (code_hash, max_uses, duration_days, note)
+        VALUES (${hash}, ${maxUses}, ${durationDays}, ${note})
+      `;
+    }
 
     codes.push(code);
   }
 
   console.log(`\n✅ Generated ${codes.length} founders code(s):\n`);
-  console.log(`  Uses: ${maxUses} | Duration: ${durationDays} days${note ? ` | Note: ${note}` : ""}\n`);
+  console.log(
+    `  Uses: ${maxUses} | Duration: ${lifetime ? `LIFETIME (${durationDays} days, code valid to 2099-12-31)` : `${durationDays} days`}${note ? ` | Note: ${note}` : ""}\n`
+  );
   codes.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
   console.log("\n  Share these with your beta testers. They won't be shown again.\n");
 }

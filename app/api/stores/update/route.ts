@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { getSQL } from "@/lib/db";
 import { isRateLimited } from "@/lib/security";
+import { parseExternalUrl } from "@/lib/store-url";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { store_id, store_content, store_name } = body;
+  const { store_id, store_content, store_name, external_url } = body;
 
   if (!store_id) {
     return NextResponse.json({ error: "store_id required" }, { status: 400 });
@@ -45,12 +46,23 @@ export async function POST(req: NextRequest) {
   const sql = getSQL();
 
   // Verify ownership
-  const stores = await sql`SELECT id FROM stores WHERE id = ${store_id} AND user_id = ${userId}`;
+  const stores = await sql`SELECT id, store_type FROM stores WHERE id = ${store_id} AND user_id = ${userId}`;
   if (!stores[0]) {
     return NextResponse.json({ error: "Store not found" }, { status: 404 });
   }
 
   try {
+    if (external_url !== undefined) {
+      if (stores[0].store_type !== "existing") {
+        return NextResponse.json({ error: "Only connected projects have a project URL" }, { status: 400 });
+      }
+      const parsedUrl = parseExternalUrl(external_url);
+      if (!parsedUrl.ok) {
+        return NextResponse.json({ error: parsedUrl.error }, { status: 400 });
+      }
+      await sql`UPDATE stores SET external_url = ${parsedUrl.url} WHERE id = ${store_id}`;
+    }
+
     if (store_content !== undefined) {
       await sql`UPDATE stores SET store_content = ${store_content} WHERE id = ${store_id}`;
     }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ARCHETYPES } from "@/lib/store-templates";
+import { parseExternalUrl } from "@/lib/store-url";
 
 export default function BuildProfileClient({
   userId,
@@ -21,6 +22,7 @@ export default function BuildProfileClient({
   const [storeName, setStoreName] = useState("");
   const [storeDesc, setStoreDesc] = useState("");
   const [storeType, setStoreType] = useState<"existing" | "fresh" | null>(null);
+  const [externalUrl, setExternalUrl] = useState("");
   const [archetype, setArchetype] = useState<string>("service");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +62,18 @@ export default function BuildProfileClient({
       return;
     }
 
+    // "Connect Existing" is meaningless without the link — without it the store
+    // opens in the build-from-scratch view instead of the connected project.
+    let parsedUrl: string | null = null;
+    if (storeType === "existing") {
+      const parsed = parseExternalUrl(externalUrl);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      parsedUrl = parsed.url;
+    }
+
     setSaving(true);
     setError("");
 
@@ -72,6 +86,7 @@ export default function BuildProfileClient({
         store_name: storeName.trim(),
         store_description: storeDesc.trim(),
         store_type: storeType,
+        external_url: parsedUrl,
         store_archetype: storeType === "fresh" ? archetype : null,
         founders: true,
       }),
@@ -294,6 +309,26 @@ export default function BuildProfileClient({
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {storeType === "existing" && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>
+                  Your Project URL
+                </label>
+                <input
+                  type="url"
+                  value={externalUrl}
+                  onChange={(e) => { setExternalUrl(e.target.value); setError(""); }}
+                  placeholder="https://your-project.com"
+                  maxLength={2048}
+                  className="w-full px-4 py-3 rounded-lg text-sm outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+                />
+                <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+                  Must start with https:// — this is the page shoppers will see.
+                </p>
               </div>
             )}
 

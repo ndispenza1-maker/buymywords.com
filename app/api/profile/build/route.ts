@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import { isArchetype, normalizeArchetype, getStarterHTML, type StoreArchetype } from "@/lib/store-templates";
+import { parseExternalUrl } from "@/lib/store-url";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile already built" }, { status: 400 });
   }
 
-  const { account_type, bio, pending, founders, store_name, store_type, store_description, store_archetype } = await request.json();
+  const { account_type, bio, pending, founders, store_name, store_type, store_description, store_archetype, external_url } = await request.json();
 
   if (!account_type || !["shopper", "store_owner"].includes(account_type)) {
     return NextResponse.json({ error: "Invalid account type" }, { status: 400 });
@@ -34,6 +35,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid founders access" }, { status: 403 });
     }
 
+    // "Connect Existing" needs the project URL up front — without it the store
+    // has nothing to show and the owner lands in the build-from-scratch view.
+    const sType = store_type === "fresh" ? "fresh" : "existing";
+    let existingUrl: string | null = null;
+    if (sType === "existing") {
+      const parsedUrl = parseExternalUrl(external_url);
+      if (!parsedUrl.ok) {
+        return NextResponse.json({ error: parsedUrl.error }, { status: 400 });
+      }
+      existingUrl = parsedUrl.url;
+    }
+
     // Complete profile + create store in one shot
     await sql`
       UPDATE users
@@ -48,25 +61,25 @@ export async function POST(request: NextRequest) {
     // Create the store
     if (store_name) {
       const desc = (store_description || bio || "").slice(0, 200);
-      const sType = store_type || "existing";
       const sName = store_name.slice(0, 60);
       const assistantOn = true; // All founders get the assistant
       const sArchetype: StoreArchetype = sType === "fresh" ? normalizeArchetype(store_archetype || "service") : "blank";
       const starterHTML = sType === "fresh" ? getStarterHTML(sArchetype, sName, desc) : null;
       await sql`
-        INSERT INTO stores (user_id, store_name, store_description, store_type, assistant_enabled, store_archetype, store_content)
-        VALUES (${user.id}, ${sName}, ${desc}, ${sType}, ${assistantOn}, ${sArchetype}, ${starterHTML})
+        INSERT INTO stores (user_id, store_name, store_description, store_type, external_url, assistant_enabled, store_archetype, store_content)
+        VALUES (${user.id}, ${sName}, ${desc}, ${sType}, ${existingUrl}, ${assistantOn}, ${sArchetype}, ${starterHTML})
         ON CONFLICT (user_id) DO UPDATE SET
           store_name = ${sName},
           store_description = ${desc},
           store_type = ${sType},
+          external_url = COALESCE(${existingUrl}, stores.external_url),
           assistant_enabled = ${assistantOn},
           store_archetype = ${sArchetype},
           store_content = COALESCE(stores.store_content, ${starterHTML})
       `;
     }
 
-    return NextResponse.json({ ok: true, userId: user.id, store_type: store_type || "existing" });
+    return NextResponse.json({ ok: true, userId: user.id, store_type: sType });
   }
 
   // Founders shopper — complete profile immediately
